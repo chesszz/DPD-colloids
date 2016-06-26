@@ -1,0 +1,7 @@
+Temperature (diff temp measure for L-E BC?)
+Green-Kubo / Lees-Edwards (might lead to increased temp)
+Hard Disk/Sphere potential -> Pre-emptive (Ensure temp doesn't explode)
+Packing/Jamming
+
+Optional:
+More efficient than N^2 neighbour interaction
