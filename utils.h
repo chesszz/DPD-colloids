@@ -11,7 +11,6 @@ typedef struct {
 
     int N_STEPS;
     double TIME_STEP;
-    double TEMP;
     double BOX_SIZE;
     double V_SHEAR;
     

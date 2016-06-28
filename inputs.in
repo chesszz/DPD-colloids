@@ -1,21 +1,19 @@
-40
+4000
 0
-50000
+500
 0.01
-1
-10
+10.0
 0. 
-5
+3
 1
 0.
-################# BLANK LINE. LINE 12 ##########################################
+################# BLANK LINE. LINE 10 ##########################################
 1. N_WATER
 2. N_PARTICLES
 3. N_STEPS
 4. TIME_STEP
-5. TEMP
-6. BOX_SIZE
-7. V_SHEAR
-8. DAMP_CONST
-9. SPRING_CONST
-10. M_PARTICLE
+5. BOX_SIZE
+6. V_SHEAR
+7. DAMP_CONST
+8. SPRING_CONST
+9. M_PARTICLE

@@ -12,9 +12,9 @@ Inputs get_inputs(void) {
 
     Inputs in;
 
-    scanf("%d %d %d %lf %lf %lf %lf %lf %lf %lf", 
+    scanf("%d %d %d %lf %lf %lf %lf %lf %lf", 
         &in.N_WATER, &in.N_PARTICLES,
-        &in.N_STEPS, &in.TIME_STEP, &in.TEMP, &in.BOX_SIZE, &in.V_SHEAR,
+        &in.N_STEPS, &in.TIME_STEP, &in.BOX_SIZE, &in.V_SHEAR,
         &in.DAMP_CONST, &in.SPRING_CONST, &in.M_PARTICLE);
 
     return in;
@@ -53,7 +53,7 @@ Dyn_Vars *initialise(Inputs in) {
     for (int i = 0; i < in.N_WATER; i++) {
 
         /* Random positions from 0 to BOX_SIZE. */
-        dyn_vars->watpos[3*i] = in.BOX_SIZE * (double) rand() / RAND_MAX;
+        dyn_vars->watpos[3*i]   = in.BOX_SIZE * (double) rand() / RAND_MAX;
         dyn_vars->watpos[3*i+1] = in.BOX_SIZE * (double) rand() / RAND_MAX;
         dyn_vars->watpos[3*i+2] = in.BOX_SIZE * (double) rand() / RAND_MAX;
         // dyn_vars->watpos[3*i+2] = 0; /* TODO: Remove for 3D. */
@@ -64,11 +64,14 @@ Dyn_Vars *initialise(Inputs in) {
          */
         double gaussian_tuple[2];
 
-        fill_gaussian_two_tuple(gaussian_tuple, sqrt(in.TEMP));
+        /* Variance is 1 since we take temp and mass to be 1 by definition of 
+         * our units.
+         */
+        fill_gaussian_two_tuple(gaussian_tuple, 1);
         dyn_vars->watvel[3*i] = gaussian_tuple[0];
         dyn_vars->watvel[3*i+1] = gaussian_tuple[1];
 
-        fill_gaussian_two_tuple(gaussian_tuple, sqrt(in.TEMP));
+        fill_gaussian_two_tuple(gaussian_tuple, 1);
         dyn_vars->watvel[3*i+2] = gaussian_tuple[1];
         // dyn_vars->watvel[3*i+2] = 0; /* TODO: Remove for 3D. */
     }

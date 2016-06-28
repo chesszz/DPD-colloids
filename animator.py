@@ -11,10 +11,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-ANIMATE         = True
+ANIMATE         = False
 TILE            = False
 PLOT_TEMP       = True
-PLOT_MAXBOLTZ   = False
+PLOT_MAXBOLTZ   = True
 
 #------------------------------------------------------------
 ### READ FROM DYN FILE ###
@@ -38,14 +38,16 @@ dyn_data = np.array(dyn_data)
 #------------------------------------------------------------
 ### READ FROM INPUT FILE ###
 
+NUM_INPUTS = 9
+
 with open("inputs.in", "r") as g:
     inputs = g.readlines()
-# Only have 10 inputs
-input_data = inputs[:10]
+# Only have 9 inputs
+input_data = inputs[:NUM_INPUTS]
 input_data = list(map(float, input_data))
 
 # Skip 1 line because it's a space
-labels = inputs[11:]
+labels = inputs[NUM_INPUTS+1:]
 # Chop out the part before the first space
 for index, string in enumerate(labels):
     string = string.strip()
@@ -58,7 +60,6 @@ N_WATER = int(input_dict["N_WATER"])
 BOX_SIZE = input_dict["BOX_SIZE"]
 N_STEPS = int(input_dict["N_STEPS"])
 TIME_STEP = input_dict["TIME_STEP"]
-TEMP = input_dict["TEMP"]
 
 #------------------------------------------------------------
 ### READ FROM TEMP FILE ###
@@ -170,9 +171,15 @@ if ANIMATE:
 
 if PLOT_TEMP:
     plt.figure()
-    plt.plot(times, temp)
+    ax = plt.subplot()
+    ax.set_ylim([0, 3])
+
+    ax.plot(times, temp)
+    ax.plot(times, np.ones(len(times)))
+
     half_temp = temp[len(temp)//2:]
-    avg_half_temp = sum(half_temp)/len(half_temp)
+    avg_half_temp = sum(half_temp) / len(half_temp)
+    ax.text(0, 0, 'Average later half temp: {0}'.format(avg_half_temp), fontsize=12)
     print("Average temperature over the later half of the data was {0}.".format(avg_half_temp))
 
 if PLOT_MAXBOLTZ:
@@ -183,18 +190,14 @@ if PLOT_MAXBOLTZ:
     # Initial velocity list
     # v_list = np.sqrt(dyn_data[:N_WATER, 6]**2+ dyn_data[:N_WATER, 7]**2 + dyn_data[:N_WATER, 8]**2)
 
-    # Rescale velocities to real velocities
-    # # Come from the real velocity scale from Mathematica
-    v_list *= 215 
+    # Have at most 50 bins, at least 5 bins, otherwise N_WATER / 8 bins
     num_bins = min(50, max(5, N_WATER//8))
     plt.hist(v_list, bins=num_bins, normed=True)
 
     x = np.linspace(0, 1.2 * max(v_list), 100)
     
-    # Come from the real mass and energy scales from Mathematica
-    m = 8.97 * 10**-26
-    kBT = 4.14 * 10**-21 * TEMP
-    y = 4 * np.pi * x**2 * (m / (2 * np.pi * kBT))**1.5 * np.exp(-m * x**2 / (2 * kBT))
+    # Calculate the theoretical velocity
+    y = 4 * np.pi * x**2 * (1 / (2 * np.pi))**1.5 * np.exp(-1 * x**2 / 2)
 
     plt.plot(x,y)
     

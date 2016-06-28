@@ -145,7 +145,7 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in) {
     /* Calculate sqrt of dt for use in F_r. Calculate it just once here. */
     double sqrt_dt= sqrt(in.TIME_STEP);
     /* Also calculate sigma, the Brownian noise strength. */
-    double sigma =  sqrt(2 * in.DAMP_CONST * in.TEMP);
+    double sigma =  sqrt(2 * in.DAMP_CONST);
 
     /* Water-Water interactions. */
     for (int i = 0; i < in.N_WATER; i++) {
