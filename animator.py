@@ -13,30 +13,9 @@ import matplotlib.animation as animation
 
 ANIMATE         = False
 TILE            = False
-PLOT_TEMP       = True
+PLOT_TEMP       = False
 PLOT_MAXBOLTZ   = False
 
-#------------------------------------------------------------
-### READ FROM DYN FILE ###
-
-if ANIMATE or PLOT_MAXBOLTZ:
-    # Read dyn file to get the simulation results
-    with open("dyn.out","r") as f:
-        dyn_data = f.readlines()
-
-    # Chop off first line which is the column header
-    dyn_data = dyn_data[1:]
-
-    # Split each line by commas, and then convert each entry from str->float
-    for index, line in enumerate(dyn_data):
-        dyn_data[index] = line.split(",")
-        for inner_index, entry in enumerate(dyn_data[index]):
-            dyn_data[index][inner_index] = float(entry)
-
-    # Convert to np array to use multiple indexing syntax
-    dyn_data = np.array(dyn_data)
-
-#------------------------------------------------------------
 ### READ FROM INPUT FILE ###
 
 NUM_INPUTS = 9
@@ -61,6 +40,34 @@ N_WATER = int(input_dict["N_WATER"])
 BOX_SIZE = input_dict["BOX_SIZE"]
 N_STEPS = int(input_dict["N_STEPS"])
 TIME_STEP = input_dict["TIME_STEP"]
+
+#------------------------------------------------------------
+### READ FROM DYN FILE ###
+
+if ANIMATE:
+    # Read dyn file to get the simulation results
+    with open("dyn.out","r") as f:
+        dyn_data = f.readlines()
+
+    # Chop off first line which is the column header
+    dyn_data = dyn_data[1:]
+
+if PLOT_MAXBOLTZ:
+    # Add 1 to account for the column header row
+    num_lines = N_WATER * N_STEPS + 1
+
+    with open("dyn.out","r") as f:
+        dyn_data = [line for index, line in enumerate(f) if index > (num_lines - N_WATER - 1)]
+
+if ANIMATE or PLOT_MAXBOLTZ:
+    # Split each line by commas, and then convert each entry from str->float
+    for index, line in enumerate(dyn_data):
+        dyn_data[index] = line.split(",")
+        for inner_index, entry in enumerate(dyn_data[index]):
+            dyn_data[index][inner_index] = float(entry)
+
+    # Convert to np array to use multiple indexing syntax
+    dyn_data = np.array(dyn_data)
 
 #------------------------------------------------------------
 ### READ FROM TEMP FILE ###

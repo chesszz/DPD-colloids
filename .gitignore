@@ -1,4 +1,5 @@
 *.o
+*.s
 *.exe
 *.out
 *.stackdump
