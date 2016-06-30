@@ -56,7 +56,7 @@ Dyn_Vars *initialise(Inputs in) {
         dyn_vars->watpos[3*i]   = in.BOX_SIZE * (double) rand() / RAND_MAX;
         dyn_vars->watpos[3*i+1] = in.BOX_SIZE * (double) rand() / RAND_MAX;
         dyn_vars->watpos[3*i+2] = in.BOX_SIZE * (double) rand() / RAND_MAX;
-        // dyn_vars->watpos[3*i+2] = 0; /* TODO: Remove for 3D. */
+        //dyn_vars->watpos[3*i+2] = 0; /* TODO: Remove for 3D. */
 
         /* http://scicomp.stackexchange.com/questions/19969/how-do-i-generate-maxwell-boltzmann-variates-using-a-uniform-distribution-random */
         /* Maxwell-Boltzmann distribution has all components of velocity
@@ -73,7 +73,7 @@ Dyn_Vars *initialise(Inputs in) {
 
         fill_gaussian_two_tuple(gaussian_tuple, 1);
         dyn_vars->watvel[3*i+2] = gaussian_tuple[1];
-        // dyn_vars->watvel[3*i+2] = 0; /* TODO: Remove for 3D. */
+        //dyn_vars->watvel[3*i+2] = 0; /* TODO: Remove for 3D. */
     }
     
     return dyn_vars;

@@ -14,26 +14,27 @@ import matplotlib.animation as animation
 ANIMATE         = False
 TILE            = False
 PLOT_TEMP       = True
-PLOT_MAXBOLTZ   = True
+PLOT_MAXBOLTZ   = False
 
 #------------------------------------------------------------
 ### READ FROM DYN FILE ###
 
-# Read dyn file to get the simulation results
-with open("dyn.out","r") as f:
-    dyn_data = f.readlines()
+if ANIMATE or PLOT_MAXBOLTZ:
+    # Read dyn file to get the simulation results
+    with open("dyn.out","r") as f:
+        dyn_data = f.readlines()
 
-# Chop off first line which is the column header
-dyn_data = dyn_data[1:]
+    # Chop off first line which is the column header
+    dyn_data = dyn_data[1:]
 
-# Split each line by commas, and then convert each entry from str->float
-for index, line in enumerate(dyn_data):
-    dyn_data[index] = line.split(",")
-    for inner_index, entry in enumerate(dyn_data[index]):
-        dyn_data[index][inner_index] = float(entry)
+    # Split each line by commas, and then convert each entry from str->float
+    for index, line in enumerate(dyn_data):
+        dyn_data[index] = line.split(",")
+        for inner_index, entry in enumerate(dyn_data[index]):
+            dyn_data[index][inner_index] = float(entry)
 
-# Convert to np array to use multiple indexing syntax
-dyn_data = np.array(dyn_data)
+    # Convert to np array to use multiple indexing syntax
+    dyn_data = np.array(dyn_data)
 
 #------------------------------------------------------------
 ### READ FROM INPUT FILE ###
@@ -64,13 +65,14 @@ TIME_STEP = input_dict["TIME_STEP"]
 #------------------------------------------------------------
 ### READ FROM TEMP FILE ###
 
-# Read temp file to get the temp results
-with open("temp.out","r") as t:
-    temp_data = t.readlines()
+if PLOT_TEMP:
+    # Read temp file to get the temp results
+    with open("temp.out","r") as t:
+        temp_data = t.readlines()
 
-# Split by space and grab the last part, which is the temp, and then convert to float.
-temp = [float(temp_entry.split()[-1]) for temp_entry in temp_data]
-times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)
+    # Split by space and grab the last part, which is the temp, and then convert to float.
+    temp = [float(temp_entry.split()[-1]) for temp_entry in temp_data]
+    times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)
 
 #------------------------------------------------------------
 
@@ -151,7 +153,7 @@ if ANIMATE:
         if TILE:
             markersize = 82/BOX_SIZE
         else:
-            markersize = 200/BOX_SIZE
+            markersize = 260/BOX_SIZE
 
         particles.set_markersize(markersize)
         time_text.set_text('Time = {0} / {1}'.format(i, N_STEPS))
@@ -177,10 +179,9 @@ if PLOT_TEMP:
     ax.plot(times, temp)
     ax.plot(times, np.ones(len(times)))
 
-    half_temp = temp[len(temp)//2:]
-    avg_half_temp = sum(half_temp) / len(half_temp)
-    ax.text(0, 0, 'Average later half temp: {0}'.format(avg_half_temp), fontsize=12)
-    print("Average temperature over the later half of the data was {0}.".format(avg_half_temp))
+    quart_temp = temp[3*len(temp)//4:]
+    avg_quart_temp = sum(quart_temp) / len(quart_temp)
+    ax.text(0, 0, 'Average last quarter temp: {0:.5}'.format(avg_quart_temp), fontsize=12)
 
 if PLOT_MAXBOLTZ:
     plt.figure()

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g
+CFLAGS=-O3 -Wall 
 LDFLAGS=
 
 SOURCES=main.c sim.c init.c terminate.c double_vector.c

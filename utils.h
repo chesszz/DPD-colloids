@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #define DEBUG 0
+#define VERBOSE 0
 #define PRINT_STEPS 1
 
 /* Used to contain all the input parameters to be passed around. */
