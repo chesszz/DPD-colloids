@@ -20,8 +20,9 @@ typedef struct {
     double M_PARTICLE;
 } Inputs;
 
-/* Contains all the dynamical variable arrays. */
+/* Contains all the dynamical variable arrays + time counter. */
 typedef struct {
+    int t;
     double *watpos;
     double *watvel;
     double *watacc;

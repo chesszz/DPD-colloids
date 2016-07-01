@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <math.h>
 
+#define TWO_D 0
+
 void fill_gaussian_two_tuple(double *tuple, double stdev);
 
 /* Reads inputs from stdin that correspond to the vaious parameters. Returns
@@ -35,6 +37,8 @@ Dyn_Vars *initialise(Inputs in) {
         exit(1);
     }
 
+    dyn_vars->t = 0;
+
     /* Allocates arrays of length 3 * N_WATER and 3 * N_PARTICLES. */
     dyn_vars->watpos  = (double *) calloc(3 * in.N_WATER,     sizeof(double));
     dyn_vars->watvel  = (double *) calloc(3 * in.N_WATER,     sizeof(double));
@@ -50,13 +54,30 @@ Dyn_Vars *initialise(Inputs in) {
         exit(1);
     }
 
+    // dyn_vars->watpos[0] = 1; // 1
+    // dyn_vars->watpos[1] = 0.2;
+    // dyn_vars->watpos[2] = 0;
+    // dyn_vars->watpos[3] = 0; // 2
+    // dyn_vars->watpos[4] = 1;
+    // dyn_vars->watpos[5] = 0;
+    // dyn_vars->watpos[6] = 4; // 3
+    // dyn_vars->watpos[7] = 4.8;
+    // dyn_vars->watpos[8] = 0;
+
     for (int i = 0; i < in.N_WATER; i++) {
 
+        int x = 3 * i;
+        int y = x + 1;
+        int z = y + 1;
+
         /* Random positions from 0 to BOX_SIZE. */
-        dyn_vars->watpos[3*i]   = in.BOX_SIZE * (double) rand() / RAND_MAX;
-        dyn_vars->watpos[3*i+1] = in.BOX_SIZE * (double) rand() / RAND_MAX;
-        dyn_vars->watpos[3*i+2] = in.BOX_SIZE * (double) rand() / RAND_MAX;
-        //dyn_vars->watpos[3*i+2] = 0; /* TODO: Remove for 3D. */
+        dyn_vars->watpos[x]   = in.BOX_SIZE * (double) rand() / RAND_MAX;
+        dyn_vars->watpos[y] = in.BOX_SIZE * (double) rand() / RAND_MAX;
+        dyn_vars->watpos[z] = in.BOX_SIZE * (double) rand() / RAND_MAX;
+
+        #if TWO_D
+            dyn_vars->watpos[z] = 0; /* TODO: Uncomment for 2D. */
+        #endif
 
         /* http://scicomp.stackexchange.com/questions/19969/how-do-i-generate-maxwell-boltzmann-variates-using-a-uniform-distribution-random */
         /* Maxwell-Boltzmann distribution has all components of velocity
@@ -68,12 +89,21 @@ Dyn_Vars *initialise(Inputs in) {
          * our units.
          */
         fill_gaussian_two_tuple(gaussian_tuple, 1);
-        dyn_vars->watvel[3*i] = gaussian_tuple[0];
-        dyn_vars->watvel[3*i+1] = gaussian_tuple[1];
+        dyn_vars->watvel[x] = gaussian_tuple[0];
+        dyn_vars->watvel[y] = gaussian_tuple[1];
+
+        /* Add a x-velocity gradient in the y-direction from the shear. We have
+         * a positive x-velocity at y = BOX_SIZE, and a negative x-velocity at
+         * y = 0.
+         */
+        dyn_vars->watvel[x] += in.V_SHEAR * (dyn_vars->watpos[y] / in.BOX_SIZE - 0.5);
 
         fill_gaussian_two_tuple(gaussian_tuple, 1);
-        dyn_vars->watvel[3*i+2] = gaussian_tuple[1];
-        //dyn_vars->watvel[3*i+2] = 0; /* TODO: Remove for 3D. */
+        dyn_vars->watvel[z] = gaussian_tuple[1];
+
+        #if TWO_D
+            dyn_vars->watvel[z] = 0; /* TODO: Uncomment for 2D. */
+        #endif
     }
     
     return dyn_vars;

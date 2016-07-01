@@ -5,7 +5,7 @@
 #include <math.h>
 #include <assert.h>
 
-#define SKIN 0.8
+#define SKIN 1.0
 
 void refold_positions(Dyn_Vars *dyn_vars, Inputs in);
 void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list);
@@ -59,6 +59,8 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     /* MAIN TIME LOOP */
     for (int t = 0; t < in.N_STEPS; t++) {
 
+        dyn_vars->t = t;
+
         /* Velocity Verlet 1: V0(t+0.5*dt) */
         for (int i = 0; i < 3*in.N_WATER; i++) {
             dyn_vars->watvel[i] += 0.5 * dt * dyn_vars->watacc[i];
@@ -73,13 +75,18 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             disp = dt * dyn_vars->watvel[i];
             /* Add displacement to both the position and displacement list. */
             dyn_vars->watpos[i] += disp;
-            disp_list_w[i]      += disp;
-        }
+            /* x-Displacement gets extra term from the shear velocity. x
+             * coordinate is a multiple of 3, so the logical test gives 1, 
+             * other axes give 0  for the test and so have no shear 
+             * displacement. */
+            disp_list_w[i]      += (disp + (i % 3 == 0) * in.V_SHEAR * dt);
+        } 
         for (int i = 0; i < 3*in.N_PARTICLES; i++) {
             disp = dt * dyn_vars->partvel[i];
             /* Add displacement to both the position and displacement list. */
             dyn_vars->partpos[i] += disp;
-            disp_list_p[i]       += disp;
+            /* Displacement gets extra term from the shear velocity. */
+            disp_list_p[i]       += (disp + in.V_SHEAR * dt);
         }
 
         /* Wrap the objects back to the box if they escaped. Handles both water
@@ -93,7 +100,7 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             update_req_w = 0;
 
             #if DEBUG
-                printf("List recomputed: %d\n", list_recomp_count);
+                fprintf(stderr, "List recomputed: %d\n", list_recomp_count);
                 list_recomp_count++;
             #endif          
         }
@@ -162,7 +169,7 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         #endif
 
         /* Print a message every 10% complete. */
-        if (t % checkpoint == 0) {
+        if (checkpoint != 0 && t % checkpoint == 0) {
             fprintf(stderr, "Time step %d / %d complete.\n", t, in.N_STEPS);
         }  
     }
@@ -176,21 +183,61 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     free(neigh_list_p);
 }
 
-/* Enforce periodic BCs. TODO: Lees-Edwards. */
+/* Enforce periodic BCs. */
 void refold_positions(Dyn_Vars *dyn_vars, Inputs in) {
 
     double size = in.BOX_SIZE;
+    int t = dyn_vars->t;
 
     /* If water escapes from the left or right side of the box, wrap it back
-     * to the inside. Each dimension is handled independently.
+     * to the inside. Each particle is handled together.
      */
-    for (int i = 0; i < 3*in.N_WATER; i++) {
-        if (dyn_vars->watpos[i] > size) {
-            dyn_vars->watpos[i] -= size;
+    for (int i = 0; i < in.N_WATER; i++) {
+
+        /* Indices for the i-th object. */
+        int x = 3 * i;
+        int y = x + 1;
+        int z = y + 1;
+
+        /* Wrap x dimension. */
+        if (dyn_vars->watpos[x] > size) {
+            dyn_vars->watpos[x] -= size;
         }
-        else if (dyn_vars->watpos[i] < 0) {
-            dyn_vars->watpos[i] += size;
+        else if (dyn_vars->watpos[x] < 0) {
+            dyn_vars->watpos[x] += size;
         }
+
+        /* Wrap y dimension. Implemented L-E BC here. Particles gain -V_SHEAR
+         * when they pass through the top and emerge from the bottom, and they
+         * gain +V_SHEAR when they pass through the bottom and emerge from the 
+         * top. Moreover, passing through the top plate pushes the x-position
+         * in the negative direction to account for the bottom cell moving left,
+         * and vice versa for the bottom boundary. 
+         */
+        if (dyn_vars->watpos[y] > size) {
+            dyn_vars->watpos[y] -= size;
+            dyn_vars->watpos[x] -= t * in.V_SHEAR * in.TIME_STEP - 
+                floor(t * in.V_SHEAR * in.TIME_STEP / size) * size;
+
+            dyn_vars->watvel[x] -= in.V_SHEAR;
+        }
+        else if (dyn_vars->watpos[y] < 0) {
+            dyn_vars->watpos[y] += size;
+            dyn_vars->watpos[x] += t * in.V_SHEAR * in.TIME_STEP - 
+                floor(t * in.V_SHEAR * in.TIME_STEP / size) * size;
+
+            dyn_vars->watvel[x] += in.V_SHEAR;
+        }
+
+        /* Wrap z dimension. */
+        if (dyn_vars->watpos[z] > size) {
+            dyn_vars->watpos[z] -= size;
+        }
+        else if (dyn_vars->watpos[z] < 0) {
+            dyn_vars->watpos[z] += size;
+        }
+
+
     }
 
     for (int i = 0; i < 3*in.N_PARTICLES; i++) {
@@ -336,20 +383,63 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list) {
  */
 void get_rel_vector(Dyn_Vars *dyn_vars, Inputs in, int i, int j, double *Rij) {
 
-    /* For all 3 dimensions. */
-    for (int k = 0; k < 3; k++) {
+    double x_shift = 0;
+    int t = dyn_vars->t;
 
-        /* Takes Ri - Rj. */
-        Rij[k] = dyn_vars->watpos[3*i+k] - dyn_vars->watpos[3*j+k];
+    /* Takes Ri - Rj for the y-axis. */
+    Rij[1] = dyn_vars->watpos[3*i+1] - dyn_vars->watpos[3*j+1];
 
-        /* Enforces periodic BC's nearest image. */
-        if (Rij[k] > in.BOX_SIZE/2) {
-            Rij[k] -= in.BOX_SIZE;
+    /* Enforces periodic BC's nearest image for y-direction first. 
+     * If we're folding in the y-direction, imagine that i is near the 
+     * top and j is near the bottom, so Rij (pointing from j to i) is
+     * positive and larger than size / 2. Hence, we fold this by 
+     * bringing particle i to the box below the main box, hence the 
+     * vector is reduced by size. Moreover, since the bottom box is
+     * moving to the left, particle i (and therefore also the vector)
+     * is shifted left (negative) by the distance travelled.
+     */
+    if (Rij[1] > in.BOX_SIZE/2) {
+        Rij[1] -= in.BOX_SIZE;
+        x_shift = - t * in.V_SHEAR * in.TIME_STEP - 
+                  floor(t * in.V_SHEAR * in.TIME_STEP / in.BOX_SIZE) * in.BOX_SIZE;
+    }
+    else if (Rij[1] < -in.BOX_SIZE/2) {
+        Rij[1] += in.BOX_SIZE;
+        x_shift = t * in.V_SHEAR * in.TIME_STEP - 
+                  floor(t * in.V_SHEAR * in.TIME_STEP / in.BOX_SIZE) * in.BOX_SIZE;
+    }
+
+    /* Repeat the finding of nearest neighbours for x-axis. */
+    Rij[0] = dyn_vars->watpos[3*i] - dyn_vars->watpos[3*j];
+    /* Put in the effect of y boundary traversal. */
+    Rij[0] += x_shift;
+
+    /* Need this while loop because the x_shift might cause Rij[0] (i.e. the x
+     * component) to be more than 1 box size off from the principle box, so we
+     * might need to do the correction > 1 time.
+     */
+    while (Rij[0] > in.BOX_SIZE/2 || Rij[0] < -in.BOX_SIZE/2) {
+        if (Rij[0] > in.BOX_SIZE/2) {
+        Rij[0] -= in.BOX_SIZE;
         }
-        else if (Rij[k] < -in.BOX_SIZE/2) {
-            Rij[k] += in.BOX_SIZE;
+        else if (Rij[0] < -in.BOX_SIZE/2) {
+            Rij[0] += in.BOX_SIZE;
         }
     }
+    
+    /* Repeat the finding of nearest neighbours for z-axis. */
+    Rij[2] = dyn_vars->watpos[3*i+2] - dyn_vars->watpos[3*j+2];
+
+    if (Rij[2] > in.BOX_SIZE/2) {
+        Rij[2] -= in.BOX_SIZE;
+    }
+    else if (Rij[2] < -in.BOX_SIZE/2) {
+        Rij[2] += in.BOX_SIZE;
+    }
+
+    #if DEBUG
+        printf("t:%d, i:%d, j:%d, %f, %f, %f\n", dyn_vars->t, i, j, Rij[0], Rij[1], Rij[2]);
+    #endif
 }
 
 void update_neigh_list(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list, double *disp_list, int num_obj) {
@@ -376,6 +466,11 @@ void update_neigh_list(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list, double *d
 
             /* Find the squared distance between particles. */
             double dist_sq = Rij[0] * Rij[0] + Rij[1] * Rij[1] + Rij[2] * Rij[2];
+
+            /* Because each dimension is at most L/2, so total squared norm is 
+             * at most 3 times of that squared.
+             */
+            assert(dist_sq < 3 * (in.BOX_SIZE/2) * (in.BOX_SIZE/2));
 
             /* If within the interaction zone + buffer, we save that neighbour. */
             if (dist_sq < neigh_dist_sq) {
@@ -436,10 +531,18 @@ double calc_temp(Dyn_Vars *dyn_vars, Inputs in) {
      * be exactly 1 by our definition of units.
      */
     for (int i = 0; i < in.N_WATER; i++) {
+
+        int x = 3 * i;
+        int y = x + 1;
+        int z = y + 1;
+
+        /* Subtract away the x-velocity from the shear flow. */
+        double vx_corr = dyn_vars->watvel[x] - in.V_SHEAR * (dyn_vars->watpos[y] / in.BOX_SIZE - 0.5);
+
         KE += 0.5 * 
-                (dyn_vars->watvel[3*i+0] * dyn_vars->watvel[3*i+0] + 
-                 dyn_vars->watvel[3*i+1] * dyn_vars->watvel[3*i+1] +
-                 dyn_vars->watvel[3*i+2] * dyn_vars->watvel[3*i+2]);
+                (vx_corr * vx_corr + 
+                 dyn_vars->watvel[y] * dyn_vars->watvel[y] +
+                 dyn_vars->watvel[z] * dyn_vars->watvel[z]);
     }
 
     double temp = KE / (3.0/2.0 * in.N_WATER); /* E ~ 3/2 NkT */
