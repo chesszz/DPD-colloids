@@ -1,3 +1,4 @@
+- Get proper size of disks?????
 - Hard Disk/Sphere potential -> Pre-emptive (Ensure temp doesn't explode)
 - Packing/Jamming
 - Pryamitsyn OR Pan papers (both adaptations of Fluid Particle Model but with different potentials)
