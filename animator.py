@@ -14,9 +14,12 @@ from matplotlib.patches import Circle
 
 ANIMATE         = True
 TILE            = True
-PLOT_TEMP       = True
+ANIMATE_WATER   = True
+PLOT_TEMP       = False
 PLOT_MAXBOLTZ   = False
 PLOT_CROSSFLOW  = False
+PLOT_VISC       = False
+PLOT_SQ_DISP    = False
 
 NUM_INPUTS      = 15
 R_WATER         = 0.5
@@ -45,8 +48,11 @@ def parse_whole_output(filename):
 
 def parse_output_final_timestep(filename, n_obj, n_step):
 
-     # Add 1 to account for the column header row
-    num_lines = n_obj * n_step + 1
+    num_lines = 0
+    with open("water.out", "r") as f:
+        while f.readline() != "":
+            num_lines += 1
+            
     # Grab only the last N_WATER steps
     with open("water.out","r") as f:
         data_last = [line for index, line in enumerate(f) if index > (num_lines - N_WATER - 1)]
@@ -70,7 +76,10 @@ def data_tiling(i, data_list, N, range_x, xmin):
     if N == 0:
         return ([],[])
 
-    t = (i + wat_data[0, 0]) * TIME_STEP
+    try:
+        t = (i + wat_data[0, 0]) * TIME_STEP
+    except (IndexError, NameError):
+        t = (i + part_data[0, 0]) * TIME_STEP
 
     x = (list(data_list[N*i:N*i+N, 2])                                              +  # mid
         [(a+t*V_SHEAR-xmin)%range_x+xmin          for a in data_list[N*i:N*i+N, 2]] +  # top                                       
@@ -134,12 +143,13 @@ TIME_STEP   = input_dict["TIME_STEP"]
 V_SHEAR     = input_dict["V_SHEAR"]
 
 #------------------------------------------------------------
-### READ FROM WATER FILE ###
+### READ FROM DYN FILE ###
 
-# Read the entire water file to get the simulation results for all time
-if ANIMATE:
-    wat_data  = parse_whole_output("water.out")
+# Read the entire water and partcle file to get the simulation results for all time
+if ANIMATE or PLOT_SQ_DISP:
     part_data = parse_whole_output("particles.out")
+if ANIMATE_WATER:
+    wat_data  = parse_whole_output("water.out")
 
 # Only read the last time step of water results
 if PLOT_MAXBOLTZ or PLOT_CROSSFLOW:
@@ -156,6 +166,19 @@ if PLOT_TEMP:
     # Split by space and grab the last part, which is the temp, and then convert
     # to float.
     temp = [float(temp_entry.split()[-1]) for temp_entry in temp_data]
+    times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)
+
+#------------------------------------------------------------
+### READ FROM VISC FILE ###
+
+if PLOT_VISC:
+    # Read visc file to get the visc results
+    with open("viscosity.out","r") as v:
+        visc_data = v.readlines()
+
+    # Split by space and grab the last part, which is the visc, and then convert
+    # to float.
+    visc = [float(visc_entry.split()[-1]) for visc_entry in visc_data]
     times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)
 
 #------------------------------------------------------------
@@ -183,13 +206,19 @@ if ANIMATE:
         num_water_circles = N_WATER
         num_particles_circles = N_PARTICLES
 
-    water = [Circle((0, 0), R_WATER, fc='blue') for _ in range(num_water_circles)]
+    water = []
+    centres_w = ()
+
+    if ANIMATE_WATER:
+        water = [Circle((0, 0), R_WATER, fc='blue') for _ in range(num_water_circles)]
+        centres_w, = ax_animate.plot([], [], 'ko')
+        for patch in water:
+            ax_animate.add_patch(patch)
+
     particles = [Circle((0, 0), R_PARTICLE, fc='brown') for _ in range(num_particles_circles)]
     particles_shell = [Circle((0, 0), R_PARTICLE_SOFT, fc='brown', alpha=0.5) for _ in range(num_particles_circles)]
     particles_inner = [Circle((0, 0), R_PARTICLE_INNER, fc='yellow', alpha=0.5) for _ in range(num_particles_circles)]
 
-    for patch in water:
-        ax_animate.add_patch(patch)
     for patch in particles:
         ax_animate.add_patch(patch)
     for patch in particles_shell:
@@ -197,7 +226,6 @@ if ANIMATE:
     for patch in particles_inner:
         ax_animate.add_patch(patch)
 
-    centres_w, = ax_animate.plot([], [], 'ko')
     centres_p, = ax_animate.plot([], [], 'yo')
 
     # rect is the box edge
@@ -248,13 +276,20 @@ if ANIMATE:
             rect_bl2.set_edgecolor('k')
             rect_br.set_edgecolor('k')
 
-        centres_w.set_markersize(2) 
+        if ANIMATE_WATER:
+            centres_w.set_markersize(2) 
         centres_p.set_markersize(2)
 
+        animated_items = tuple(particles) +  tuple(particles_shell) + tuple(particles_inner) + (centres_p, rect, time_text)
+
+        if ANIMATE_WATER:
+            # Don't use += so that water is in front and so plotted below
+            animated_items = tuple(water) + animated_items
+            animated_items += (centres_w,)
         if TILE:
-            return tuple(water) + tuple(particles) +  tuple(particles_shell) + tuple(particles_inner) + (centres_w, centres_p, rect, rect_top, rect_tl, rect_tl2, rect_tr, rect_bot, rect_bl, rect_bl2, rect_br, time_text)
-        else:
-            return tuple(water) + tuple(particles) +  tuple(particles_shell) + tuple(particles_inner) + (centres_w, centres_p, rect, time_text)
+            animated_items += (rect_top, rect_tl, rect_tl2, rect_tr, rect_bot, rect_bl, rect_bl2, rect_br)
+
+        return animated_items
 
 
     def animate(i):
@@ -263,7 +298,10 @@ if ANIMATE:
         xmin, xmax = ax_animate.get_xlim()
         range_x = xmax - xmin
 
-        t = (i + wat_data[0, 0]) * TIME_STEP
+        try:
+            t = (i + wat_data[0, 0]) * TIME_STEP
+        except (IndexError, NameError):
+            t = (i + part_data[0, 0]) * TIME_STEP
 
         if TILE: 
             
@@ -280,23 +318,27 @@ if ANIMATE:
             # Calculate data of the water & particles using tiling
             # Get data from the function, which returns in a tuple of 2 lists 
             # representing the x and y values. 
-            water_xy_lists = data_tiling(i, wat_data, N_WATER, range_x, xmin)
+            if ANIMATE_WATER:
+                water_xy_lists = data_tiling(i, wat_data, N_WATER, range_x, xmin)
             particles_xy_lists = data_tiling(i, part_data, N_PARTICLES, range_x, xmin)
 
         else: # Only plots the main cell   
             # Calculate data of the water & particles using nontile
-            water_xy_lists = data_nontile(i, wat_data, N_WATER)
+            if ANIMATE_WATER:
+                water_xy_lists = data_nontile(i, wat_data, N_WATER)
             particles_xy_lists = data_nontile(i, part_data, N_PARTICLES)
 
         # Use zip (with unpacking of the tuple) to make it into ordered (x,y) 
         # pairs instead, and then call tuple() to convert from generator to 
         # tuple.
-        water_xy = tuple(zip(*water_xy_lists))
+        if ANIMATE_WATER:
+            water_xy = tuple(zip(*water_xy_lists))
         particles_xy = tuple(zip(*particles_xy_lists))
 
         # Assign these (x,y) pairs to the Circle objects
-        for index, patch in enumerate(water):
-            patch.center = water_xy[index]
+        if ANIMATE_WATER:
+            for index, patch in enumerate(water):
+                patch.center = water_xy[index]
         for index, patch in enumerate(particles):
             patch.center = particles_xy[index]
         for index, patch in enumerate(particles_shell):
@@ -306,15 +348,21 @@ if ANIMATE:
 
         # These are simpler to assign, just assign the tuple of lists directly
         # to the points that are plotted.
-        centres_w.set_data(water_xy_lists)
+        if ANIMATE_WATER:
+            centres_w.set_data(water_xy_lists)
         centres_p.set_data(particles_xy_lists)
 
         time_text.set_text('Time = {0} / {1}'.format(i, N_STEPS))
         
+        animated_items = tuple(particles) +  tuple(particles_shell) + tuple(particles_inner) + (centres_p, rect, time_text)
+        if ANIMATE_WATER:
+            # Don't use += so that water is in front and so plotted below
+            animated_items = tuple(water) + animated_items
+            animated_items += (centres_w,)
         if TILE:
-            return tuple(water) + tuple(particles) +  tuple(particles_shell) + tuple(particles_inner) + (centres_w, centres_p, rect, rect_top, rect_tl, rect_tl2, rect_tr, rect_bot, rect_bl, rect_bl2, rect_br, time_text)
-        else:
-            return tuple(water) + tuple(particles) +  tuple(particles_shell) + tuple(particles_inner) + (centres_w, centres_p, rect, time_text)
+            animated_items += (rect_top, rect_tl, rect_tl2, rect_tr, rect_bot, rect_bl, rect_bl2, rect_br)
+
+        return animated_items
 
 
     ani = animation.FuncAnimation(fig, animate, frames=N_STEPS,
@@ -337,8 +385,28 @@ if PLOT_TEMP:
     ax.plot(times, np.ones(len(times)))
 
     quart_temp = temp[3*len(temp)//4:]
-    avg_quart_temp = sum(quart_temp) / len(quart_temp)
-    ax.text(0, 0, 'Average last quarter temp: {0:.5}'.format(avg_quart_temp), fontsize=12)
+    avg_quart_temp = np.mean(quart_temp)
+    quart_temp_stdev = np.std(quart_temp)
+
+    ax.text(0, 0, 'Average last quarter temp: {0:.5} $\\pm$ {1:.4}'.format(avg_quart_temp, quart_temp_stdev), fontsize=12)
+
+if PLOT_VISC:
+    plt.figure()
+    ax = plt.subplot()
+
+    quart_visc = visc[3*len(visc)//4:]
+    avg_quart_visc = np.mean(quart_visc)
+    quart_visc_stdev = np.std(quart_visc)
+
+    ax.plot(times, visc)
+    ax.plot(times, avg_quart_visc * np.ones(len(times)), 'k', linewidth='3.0')
+    ax.plot(times, (avg_quart_visc + quart_visc_stdev) * np.ones(len(times)), 'r--')
+    ax.plot(times, (avg_quart_visc - quart_visc_stdev) * np.ones(len(times)), 'r--')
+
+    x_lim = ax.get_xlim()
+    y_lim = ax.get_ylim()
+
+    ax.text(x_lim[0], y_lim[0], 'Average last quarter viscosity: {0:.4} $\\pm$ {1:.4}'.format(avg_quart_visc, quart_visc_stdev), fontsize=12)
 
 if PLOT_MAXBOLTZ:
     plt.figure()
@@ -357,7 +425,7 @@ if PLOT_MAXBOLTZ:
     plt.plot(x,y)
 
 if PLOT_CROSSFLOW:
-    num_boundaries = 21
+    num_boundaries = 11
     num_bins = num_boundaries - 1
     y_bins = np.linspace(0, BOX_SIZE, num_boundaries)
     y_points = np.linspace(0, BOX_SIZE, num_bins)
@@ -390,10 +458,13 @@ if PLOT_CROSSFLOW:
         else:
             xvel_avg[index] = row[0] / row[1]
 
+    vx_theory = V_SHEAR * (y_bins / BOX_SIZE - 0.5)
+
     plt.figure()
     
     ax1 = plt.subplot(211)
     ax1.plot(y_points, xvel_avg, 'bo')
+    ax1.plot(y_bins, vx_theory)
     plt.title("Average x velocity as a function of y position")
 
     ax2 = plt.subplot(212)
@@ -401,6 +472,53 @@ if PLOT_CROSSFLOW:
     ax2.plot(y_points, np.ones(len(y_points)) * sum(count_list) / len(count_list), 'b-')
     plt.title("Number of water as a function of y position")
     ax2.set_ylim([0, sum(count_list)/4])
+
+
+if PLOT_SQ_DISP:
+    x0 = part_data[0, 2]
+    y0 = part_data[0, 3]
+    z0 = part_data[0, 4]
+
+    x_prev = x0
+    y_prev = y0
+    z_prev = z0
+
+    pass_x = 0
+    pass_y = 0
+    pass_z = 0
+
+    disp_sq = []
+    
+    # Only take data for the 1st particle
+    for row in part_data[0::N_PARTICLES]:
+        # Confirm it's particle 0
+        assert(row[1] == 0)
+
+        x = row[2] + pass_x * BOX_SIZE
+        y = row[3] + pass_y * BOX_SIZE
+        z = row[4] + pass_z * BOX_SIZE
+
+        # If x moved off the right side, then x_prev would be large while 
+        # x would be ~0, therefore (x - x_prev) < 0, and we need to add 1 to
+        # our new x value to reflect that it moved off the right.
+        if (abs(x - x_prev)) > 0.8 * BOX_SIZE:
+            pass_x -= np.sign(x - x_prev)
+            x = row[2] + pass_x * BOX_SIZE
+        if (abs(y - y_prev)) > 0.8 * BOX_SIZE:
+            pass_y -= np.sign(y - y_prev)
+            y = row[3] + pass_y * BOX_SIZE
+        if (abs(z - z_prev)) > 0.8 * BOX_SIZE:
+            pass_z -= np.sign(z - z_prev)
+            z = row[4] + pass_z * BOX_SIZE
+
+        disp_sq.append((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2)
+
+        x_prev = x
+        y_prev = y
+        z_prev = z
+
+    plt.figure()
+    plt.plot(disp_sq)
     
 plt.show()
 plt.close()

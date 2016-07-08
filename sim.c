@@ -5,13 +5,17 @@
 #include <math.h>
 #include <assert.h>
 
+/* Interaction distance of water */
+#define R_SS 1.0 /* DO NOT CHANGE */
+
 #define SKIN 1.0
-#define R_SS 1.0
+#define PRINT_PARTICLES 0
+#define PRINT_WATER 0
 
 void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, 
                     double *vel_list, int num_obj);
 
-void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, 
+double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, 
                     int *neigh_list_w, int *neigh_list_pw, double strength);
 
 void get_rel_vector(Inputs in, int t, double *pos_list_1, double *pos_list_2, 
@@ -43,12 +47,13 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
 
     double dt = in.TIME_STEP;
     int num_inc = 26;
-    int t_stab = 50;
+    int t_stab = 40;
 
     int checkpoint = in.N_STEPS / 10;
     FILE *wat_out = fopen("water.out", "w");
     FILE *part_out = fopen("particles.out", "w");
     FILE *temp_out = fopen("temp.out", "w");
+    FILE *visc_out = fopen("viscosity.out", "w");
 
     int update_req = 1;
 
@@ -159,7 +164,7 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             update_req = check_update_req(disp_list_w, disp_list_p, in.N_WATER, in.N_PARTICLES);
         }
 
-        fprintf(stderr, "Finished increment loop %d. Time is now %d.\n", inc, dyn_vars->t);
+        fprintf(stderr, "Finished increment loop %d with strength %f. Time is now %d.\n", inc, strength, dyn_vars->t);
     }
     
     fprintf(stderr, "Finished all increment loops. Time is now %d.\n", dyn_vars->t);
@@ -230,7 +235,15 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         }
 
         /* Velocity Verlet 3: F(t+dt) */
-        calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, 1.0);
+        double viscosity = calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, 1.0);
+
+        /* The calculate_acc function updates the acceleration in the dyn_vars, 
+         * but also outputs a viscosity. Need to compute inside ths function as
+         * we need the individual forces between objects i, j, but we only
+         * have the combined force once the function returns. */
+        double shear_rate = in.V_SHEAR / in.BOX_SIZE;
+        double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
+        viscosity /= -(box_vol * shear_rate);
 
         /* Velocity Verlet 4: V(t+dt) */
         for (int i = 0; i < 3*in.N_WATER; i++) {
@@ -266,33 +279,52 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         /* At each time step, print the positions, velocities, and 
          * accelerations for each particle.
          */
+        #if PRINT_WATER
+            for (int i = 0; i < in.N_WATER; i++) {
+                fprintf(wat_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
+                    t, i,
+                    dyn_vars->watpos[3*i], dyn_vars->watpos[3*i+1], dyn_vars->watpos[3*i+2], 
+                    dyn_vars->watvel[3*i], dyn_vars->watvel[3*i+1], dyn_vars->watvel[3*i+2],
+                    dyn_vars->watacc[3*i], dyn_vars->watacc[3*i+1], dyn_vars->watacc[3*i+2]);
+            }
+        #endif
+
+        #if PRINT_PARTICLES
+            for (int i = 0; i < in.N_PARTICLES; i++) {
+                fprintf(part_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
+                    t, i, 
+                    dyn_vars->partpos[3*i], dyn_vars->partpos[3*i+1], dyn_vars->partpos[3*i+2], 
+                    dyn_vars->partvel[3*i], dyn_vars->partvel[3*i+1], dyn_vars->partvel[3*i+2],
+                    dyn_vars->partacc[3*i], dyn_vars->partacc[3*i+1], dyn_vars->partacc[3*i+2]);
+            }
+        #endif
+
+        /* At each time step, print the temperature. */
+        fprintf(temp_out, "%d, %f\n", t, calc_temp(dyn_vars, in));
+        /* At each time step, print the viscosity. */
+        fprintf(visc_out, "%d, %f\n", t, viscosity);
+
+        /* Print a message every 10% complete. */
+        if (checkpoint != 0 && (t - t_after_settle) % checkpoint == 0) {
+            fprintf(stderr, "Time step %d / %d complete.\n", t - t_after_settle, in.N_STEPS);
+        }  
+    }
+
+    /* If we don't print all the water, we at least print the last one. */
+    #if !PRINT_WATER
         for (int i = 0; i < in.N_WATER; i++) {
             fprintf(wat_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
-                t, i,
+                dyn_vars->t, i,
                 dyn_vars->watpos[3*i], dyn_vars->watpos[3*i+1], dyn_vars->watpos[3*i+2], 
                 dyn_vars->watvel[3*i], dyn_vars->watvel[3*i+1], dyn_vars->watvel[3*i+2],
                 dyn_vars->watacc[3*i], dyn_vars->watacc[3*i+1], dyn_vars->watacc[3*i+2]);
         }
-        for (int i = 0; i < in.N_PARTICLES; i++) {
-            fprintf(part_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
-                t, i, 
-                dyn_vars->partpos[3*i], dyn_vars->partpos[3*i+1], dyn_vars->partpos[3*i+2], 
-                dyn_vars->partvel[3*i], dyn_vars->partvel[3*i+1], dyn_vars->partvel[3*i+2],
-                dyn_vars->partacc[3*i], dyn_vars->partacc[3*i+1], dyn_vars->partacc[3*i+2]);
-        }
-
-        /* At each time step, print the temperature. */
-        fprintf(temp_out, "%d, %f\n", t, calc_temp(dyn_vars, in));
-
-        /* Print a message every 10% complete. */
-        if (checkpoint != 0 && t % checkpoint == 0) {
-            fprintf(stderr, "Time step %d / %d complete.\n", t, t_after_settle + in.N_STEPS);
-        }  
-    }
+    #endif
 
     fclose(wat_out);
     fclose(part_out);
     fclose(temp_out);
+    fclose(visc_out);
 
     free(disp_list_w);
     free(disp_list_p);
@@ -357,7 +389,7 @@ void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, double *v
 }
 
 /* Calculate the forces acting on each water and particle. */
-void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_list_w, int *neigh_list_pw, double strength) {
+double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_list_w, int *neigh_list_pw, double strength) {
 
     /* Zero out all accelerations. */
     for (int i = 0; i < 3*in.N_WATER; i++) {
@@ -367,6 +399,8 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
         dyn_vars->partacc[i] = 0;
     }
 
+    double viscosity = 0.0;
+
     /* Calculate sqrt of dt for use in F_r. Calculate it just once here. */
     double sqrt_dt = sqrt(in.TIME_STEP);
     /* Also calculate sigma, the Brownian noise strength. */
@@ -374,6 +408,7 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
 
     double R_CC_sq = in.R_CC * in.R_CC;
     double R_SC_sq = in.R_SC * in.R_SC;
+
 
     /* -------------------------------------------------------------------- */
     /* 1. Water-Water interactions. */
@@ -433,10 +468,12 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             assert(dist_weight > 0);
             assert(dist_weight <= 1);
 
+            double Rij_norm[3];
+
             /* Normalise the separation vector. */
-            Rij[0] /= dist;
-            Rij[1] /= dist;
-            Rij[2] /= dist;
+            Rij_norm[0] = Rij[0] / dist;
+            Rij_norm[1] = Rij[1] / dist;
+            Rij_norm[2] = Rij[2] / dist;
 
             /* Find the relative velocity, Vi - Vj. It is the velocity of i
              * relative to / from the frame of j. 
@@ -446,9 +483,9 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             Vij[1] = dyn_vars->watvel[3*i+1] - dyn_vars->watvel[3*j+1];
             Vij[2] = dyn_vars->watvel[3*i+2] - dyn_vars->watvel[3*j+2];
 
-            double V_dot_R =    Vij[0] * Rij[0] + 
-                                Vij[1] * Rij[1] + 
-                                Vij[2] * Rij[2];
+            double V_dot_R =    Vij[0] * Rij_norm[0] + 
+                                Vij[1] * Rij_norm[1] + 
+                                Vij[2] * Rij_norm[2];
 
             #if VERBOSE
                 printf("Vi_x: %f, Vj_x: %f\n", dyn_vars->watvel[3*i], dyn_vars->watvel[3*j]);
@@ -477,18 +514,42 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
              * taken to be exactly 1 by our definition of units.*/
             double A = (F_c + F_d + F_r);
 
+            /* Component from viscosity that comes from F_x * Rij_y.
+             * This is summed over all (i, j) pairs with j > i and where there 
+             * is a force between these 2 particles. This is why we do this loop
+             * here, since here is where all the water-water interaction pairs 
+             * reside. We only do 1 term for i and not for j since we need that
+             * i < j. */
+            viscosity += A * Rij_norm[0] * Rij[1];
+
             /* Force by j on water i. */
-            dyn_vars->watacc[3*i]   += A * Rij[0];
-            dyn_vars->watacc[3*i+1] += A * Rij[1];
-            dyn_vars->watacc[3*i+2] += A * Rij[2];
+            dyn_vars->watacc[3*i]   += A * Rij_norm[0];
+            dyn_vars->watacc[3*i+1] += A * Rij_norm[1];
+            dyn_vars->watacc[3*i+2] += A * Rij_norm[2];
 
             /* Reaction force by i on water j. */
-            dyn_vars->watacc[3*j]   -= A * Rij[0];
-            dyn_vars->watacc[3*j+1] -= A * Rij[1];
-            dyn_vars->watacc[3*j+2] -= A * Rij[2];
+            dyn_vars->watacc[3*j]   -= A * Rij_norm[0];
+            dyn_vars->watacc[3*j+1] -= A * Rij_norm[1];
+            dyn_vars->watacc[3*j+2] -= A * Rij_norm[2];
         }
     }
 
+    /* Component of the viscosity that is summed over all water objects, of the 
+     * form v'_x * v'_y, where v' refers to the velocity after we subtract away
+     * the background shear flow (in the x-direction). m_i is not accounted for
+     * since water has m = 1 by definition. 
+     */
+    for (int i = 0; i < in.N_WATER; i++) {
+
+        int x = 3 * i;
+        int y = x + 1;
+
+        /* Subtract away the x-velocity that comes from the shear flow. */
+        double vx_corr = dyn_vars->watvel[x] - in.V_SHEAR * (dyn_vars->watpos[y] / in.BOX_SIZE - 0.5);
+
+        viscosity += vx_corr * dyn_vars->watvel[y];
+    }
+ 
     /* -------------------------------------------------------------------- */
     /* 2. Particle-Particle interactions. */
     /* -------------------------------------------------------------------- */
@@ -549,10 +610,12 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             assert(dist_weight > 0);
             assert(dist_weight <= 1);
 
+            double Rij_norm[3];
+
             /* Normalise the separation vector. */
-            Rij[0] /= dist;
-            Rij[1] /= dist;
-            Rij[2] /= dist;
+            Rij_norm[0] = Rij[0] / dist;
+            Rij_norm[1] = Rij[1] / dist;
+            Rij_norm[2] = Rij[2] / dist;
 
             /* Find the relative velocity, Vi - Vj. It is the velocity of i
              * relative to / from the frame of j. 
@@ -562,9 +625,9 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             Vij[1] = dyn_vars->partvel[3*i+1] - dyn_vars->partvel[3*j+1];
             Vij[2] = dyn_vars->partvel[3*i+2] - dyn_vars->partvel[3*j+2];
 
-            double V_dot_R =    Vij[0] * Rij[0] + 
-                                Vij[1] * Rij[1] + 
-                                Vij[2] * Rij[2];
+            double V_dot_R =    Vij[0] * Rij_norm[0] + 
+                                Vij[1] * Rij_norm[1] + 
+                                Vij[2] * Rij_norm[2];
 
             #if VERBOSE
                 printf("Vi_x: %f, Vj_x: %f\n", dyn_vars->partvel[3*i], dyn_vars->partvel[3*j]);
@@ -576,13 +639,7 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             double F_c =  -12 * e_cc * pow(s_cc, 6) / pow(dist, 8) * (1 - pow(s_cc / dist, 6));
             /* Dissipative/Damping Force. */
             double F_d = - in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
-            /* Random/Brownian Force.
-             * Variance of a uniform distribution is 1/12 * interval^2.
-             * Therefore, for mean = 0 and variance = 1, assume we have -x/2
-             * to x/2, then 1/12 * x^2 = 1 ==> x = sqrt(12) ~ 3.464. Note 
-             * that we first scale from 0 ~ RAND_MAX ==> 0 ~ 1 ==> 
-             * -1/2 ~ 1/2 ==> -sqrt(12)/2 ~ sqrt(12)/2.
-             */
+            /* Random/Brownian Force. */
             double F_r = sigma * dist_weight * 3.464 * ((rand()/(double) RAND_MAX) - 0.5) / sqrt_dt;
 
             #if VERBOSE
@@ -592,15 +649,33 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             /* Total acceleration = Total F / m. */
             double A = (F_c + F_d + F_r) / in.M_PARTICLE;
 
+            /* Component from viscosity that comes from F_x * Rij_y. */
+            viscosity += in.M_PARTICLE * A * Rij_norm[0] * Rij[1];
+
             /* Force by j on particle i. */
-            dyn_vars->partacc[3*i]   += A * Rij[0];
-            dyn_vars->partacc[3*i+1] += A * Rij[1];
-            dyn_vars->partacc[3*i+2] += A * Rij[2];
+            dyn_vars->partacc[3*i]   += A * Rij_norm[0];
+            dyn_vars->partacc[3*i+1] += A * Rij_norm[1];
+            dyn_vars->partacc[3*i+2] += A * Rij_norm[2];
 
             /* Reaction force by i on particle j. */
-            dyn_vars->partacc[3*j]   -= A * Rij[0];
-            dyn_vars->partacc[3*j+1] -= A * Rij[1];
-            dyn_vars->partacc[3*j+2] -= A * Rij[2];
+            dyn_vars->partacc[3*j]   -= A * Rij_norm[0];
+            dyn_vars->partacc[3*j+1] -= A * Rij_norm[1];
+            dyn_vars->partacc[3*j+2] -= A * Rij_norm[2];
+        }
+
+        /* Component of the viscosity that is summed over all particles, of the 
+         * form v'_x * v'_y, where v' refers to the velocity after we subtract away
+         * the background shear flow (in the x-direction).
+         */
+        for (int i = 0; i < in.N_PARTICLES; i++) {
+
+            int x = 3 * i;
+            int y = x + 1;
+
+            /* Subtract away the x-velocity that comes from the shear flow. */
+            double vx_corr = dyn_vars->partvel[x] - in.V_SHEAR * (dyn_vars->partpos[y] / in.BOX_SIZE - 0.5);
+
+            viscosity += in.M_PARTICLE * vx_corr * dyn_vars->partvel[y];
         }
     }
 
@@ -664,10 +739,12 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             assert(dist_weight > 0);
             assert(dist_weight <= 1);
 
+            double Rij_norm[3];
+
             /* Normalise the separation vector. */
-            Rij[0] /= dist;
-            Rij[1] /= dist;
-            Rij[2] /= dist;
+            Rij_norm[0] = Rij[0] / dist;
+            Rij_norm[1] = Rij[1] / dist;
+            Rij_norm[2] = Rij[2] / dist;
 
             /* Find the relative velocity, Vi - Vj. It is the velocity of i
              * relative to / from the frame of j. i is a particle, j  is water.
@@ -677,9 +754,9 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             Vij[1] = dyn_vars->partvel[3*i+1] - dyn_vars->watvel[3*j+1];
             Vij[2] = dyn_vars->partvel[3*i+2] - dyn_vars->watvel[3*j+2];
 
-            double V_dot_R =    Vij[0] * Rij[0] + 
-                                Vij[1] * Rij[1] + 
-                                Vij[2] * Rij[2];
+            double V_dot_R =    Vij[0] * Rij_norm[0] + 
+                                Vij[1] * Rij_norm[1] + 
+                                Vij[2] * Rij_norm[2];
 
             #if VERBOSE
                 printf("Vi_x: %f, Vj_x: %f\n", dyn_vars->partvel[3*i], dyn_vars->partvel[3*j]);
@@ -691,34 +768,35 @@ void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_
             double F_c =  -12 * e_sc * pow(s_sc, 6) / pow(dist, 8) * (1 - pow(s_sc / dist, 6));
             /* Dissipative/Damping Force. */
             double F_d = - in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
-            /* Random/Brownian Force.
-             * Variance of a uniform distribution is 1/12 * interval^2.
-             * Therefore, for mean = 0 and variance = 1, assume we have -x/2
-             * to x/2, then 1/12 * x^2 = 1 ==> x = sqrt(12) ~ 3.464. Note 
-             * that we first scale from 0 ~ RAND_MAX ==> 0 ~ 1 ==> 
-             * -1/2 ~ 1/2 ==> -sqrt(12)/2 ~ sqrt(12)/2.
-             */
+            /* Random/Brownian Force. */
             double F_r = sigma * dist_weight * 3.464 * ((rand()/(double) RAND_MAX) - 0.5) / sqrt_dt;
 
             #if VERBOSE
                 printf("Particles (%d, %d), F_c: %f, F_d: %f, F_r: %f\n", i, j, F_c, F_d, F_r);
             #endif
             
-            /* Total acceleration = Total F / m. */
+            /* Total acceleration = Total F / m. A_w reflects the actual force. */
             double A_w = (F_c + F_d + F_r);
             double A_p = A_w / in.M_PARTICLE;
 
+            /* Component from viscosity that comes from F_x * Rij_y. Here we use
+             * the force on the particle to calculate as the Rij vector is 
+             * calculated using i for the particle and j for the water. */
+            viscosity += in.M_PARTICLE * A_p * Rij_norm[0] * Rij[1];
+
             /* Force by water j on particle i. */
-            dyn_vars->partacc[3*i]   += A_p * Rij[0];
-            dyn_vars->partacc[3*i+1] += A_p * Rij[1];
-            dyn_vars->partacc[3*i+2] += A_p * Rij[2];
+            dyn_vars->partacc[3*i]   += A_p * Rij_norm[0];
+            dyn_vars->partacc[3*i+1] += A_p * Rij_norm[1];
+            dyn_vars->partacc[3*i+2] += A_p * Rij_norm[2];
 
             /* Reaction force by particle i on water j. */
-            dyn_vars->watacc[3*j]   -= A_w * Rij[0];
-            dyn_vars->watacc[3*j+1] -= A_w * Rij[1];
-            dyn_vars->watacc[3*j+2] -= A_w * Rij[2];
+            dyn_vars->watacc[3*j]   -= A_w * Rij_norm[0];
+            dyn_vars->watacc[3*j+1] -= A_w * Rij_norm[1];
+            dyn_vars->watacc[3*j+2] -= A_w * Rij_norm[2];
         }
     }
+
+    return viscosity;
 
 }
 

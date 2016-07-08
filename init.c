@@ -136,8 +136,9 @@ void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num, 
         vel_list[y] = gaussian_tuple[1];
 
         /* Add a x-velocity gradient in the y-direction from the shear. We have
-         * a positive x-velocity at y = BOX_SIZE, and a negative x-velocity at
-         * y = 0.
+         * a positive x-velocity of + V_SHEAR / 2 at y = BOX_SIZE, and a 
+         * negative x-velocity of - V_SHEAR / 2 at y = 0. Therefore, the shear
+         * rate is delta V_x / delta y = V_SHEAR / BOX_SIZE.
          */
         vel_list[x] += in.V_SHEAR * (pos_list[y] / in.BOX_SIZE - 0.5);
 

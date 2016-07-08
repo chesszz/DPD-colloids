@@ -12,7 +12,8 @@ int main (void) {
 
     Inputs inputs = get_inputs();
     Dyn_Vars *dyn_vars = initialise(inputs);
-    
+    output_state(dyn_vars, inputs);
+
     clock_t start = clock(), diff;
     evolve_system(dyn_vars, inputs);
     diff = clock() - start;

@@ -1,4 +1,6 @@
-- Hard Disk/Sphere potential -> Pre-emptive (Ensure temp doesn't explode)
+- Add in 3D rotation etc          ???
+- Check calculation for viscosity ???
+
 - Packing/Jamming
 - Pryamitsyn OR Pan papers (both adaptations of Fluid Particle Model but with different potentials)
     - Pryamitsyn has soft Solvent-Solvent forces and LJ potentials for Solvent-Colloid and Colloid-Colloid
