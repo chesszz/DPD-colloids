@@ -21,6 +21,7 @@ PLOT_CROSSFLOW  = False # Plot the x-velocity distribution of water against y-po
 PLOT_VISC       = True # Plot the viscosity-time curve
 PLOT_SQ_DISP_W  = False # Plot the squared-displacement of water
 PLOT_SQ_DISP_P  = False  # Plot the squared-displacement of particles
+PLOT_PRESSURE   = False  # Plot the pressure-time curve
 
 NUM_INPUTS      = 15    # How many inputs there are to be read from inputs.in
 
@@ -240,13 +241,31 @@ if PLOT_TEMP:
 
 if PLOT_VISC:
     # Read visc file to get the visc results
-    with open("viscosity.out","r") as v:
-        visc_data = v.readlines()
+    with open("shear.out","r") as s:
+        shear_data = s.readlines()
 
-    # Split by space and grab the last part, which is the visc, and then convert
-    # to float.
-    visc = [float(visc_entry.split()[-1]) for visc_entry in visc_data]
+    # Split by comma and grab all columns except the first, which is the time
+    shears = np.array([shear_entry.split(',')[1:] for shear_entry in shear_data])
+    shears = shears.astype(float)
+
+    shear_xy = shears[:,0]
+    shear_xz = shears[:,1]
+    shear_yz = shears[:,2]
+
     times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)
+
+#------------------------------------------------------------
+### READ FROM PRESSURE FILE ###
+
+if PLOT_PRESSURE:
+     # Read pressure file to get the pressure results
+    with open("pressure.out","r") as p:
+        pressure_data = p.readlines()
+
+    # Split by space and grab the last part, which is the pressure, and then 
+    # convert to float.
+    pressure = [float(pressure_entry.split()[-1]) for pressure_entry in pressure_data]
+    times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)   
 
 #------------------------------------------------------------
 
@@ -461,33 +480,53 @@ if PLOT_VISC:
     plt.figure()
     ax = plt.subplot()
 
-    quart_visc = visc[3*len(visc)//4:]
+    # Chop each one to half its length to discard the first half
+    shear_xy = shear_xy[len(shear_xy)//2:]
+    shear_xz = shear_xz[len(shear_xz)//2:]
+    shear_yz = shear_yz[len(shear_yz)//2:]
+    times_chopped = times[len(times)//2:]
 
     # Number of time steps we are doing the integral over
-    n_time_int = len(visc)
+    n_time_int = len(shear_xy)
     integrated_viscosity = 0
 
     # Delay time between left and right window (index)
     for t_d in range(n_time_int):
         # Start index for each window
         for t_start in range(n_time_int - t_d):
-            integrated_viscosity += (visc[t_start] * visc[t_start + t_d]) / (n_time_int - t_d) 
+            integrated_viscosity += (shear_xy[t_start] * shear_xy[t_start + t_d]) / (n_time_int - t_d) 
+            integrated_viscosity += (shear_xz[t_start] * shear_xz[t_start + t_d]) / (n_time_int - t_d) 
+            integrated_viscosity += (shear_yz[t_start] * shear_yz[t_start + t_d]) / (n_time_int - t_d) 
 
     integrated_viscosity *= TIME_STEP * (BOX_SIZE ** 3)
+    integrated_viscosity /= 3
 
-    # avg_quart_visc = np.mean(quart_visc)
-    # quart_visc_stdev = np.std(quart_visc)
-
-    ax.plot(times, visc)
-    # ax.plot(times, avg_quart_visc * np.ones(len(times)), 'k', linewidth='3.0')
-    # ax.plot(times, (avg_quart_visc + quart_visc_stdev) * np.ones(len(times)), 'r--')
-    # ax.plot(times, (avg_quart_visc - quart_visc_stdev) * np.ones(len(times)), 'r--')
+    ax.plot(times_chopped, shear_xy)
+    ax.plot(times_chopped, shear_xz)
+    ax.plot(times_chopped, shear_yz)
 
     x_lim = ax.get_xlim()
     y_lim = ax.get_ylim()
 
-    # ax.text(x_lim[0], y_lim[0], 'Average last quarter viscosity: {0:.4} $\\pm$ {1:.4}'.format(avg_quart_visc, quart_visc_stdev), fontsize=12)
     ax.text(x_lim[0], y_lim[0], 'Integrated viscosity over last {0} steps: {1:.4}'.format(n_time_int, integrated_viscosity), fontsize=12)
+
+if PLOT_PRESSURE:
+    plt.figure()
+    ax = plt.subplot()
+
+    quart_press = pressure[3*len(pressure)//4:]
+    avg_quart_press = np.mean(quart_press)
+    quart_press_stdev = np.std(quart_press)
+
+    ax.plot(times, pressure)
+    ax.plot(times, avg_quart_press * np.ones(len(times)), 'k', linewidth='3.0')
+    ax.plot(times, (avg_quart_press + quart_press_stdev) * np.ones(len(times)), 'r--')
+    ax.plot(times, (avg_quart_press - quart_press_stdev) * np.ones(len(times)), 'r--')
+
+    x_lim = ax.get_xlim()
+    y_lim = ax.get_ylim()
+
+    ax.text(x_lim[0], y_lim[0], 'Average last quarter pressure: {0:.4} $\\pm$ {1:.4}'.format(avg_quart_press, quart_press_stdev), fontsize=12)
 
 if PLOT_MAXBOLTZ:
     plt.figure()

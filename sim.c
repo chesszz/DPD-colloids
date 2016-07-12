@@ -13,8 +13,9 @@
 void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, 
                     double *vel_list, int num_obj);
 
-double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, 
-                    int *neigh_list_w, int *neigh_list_pw, double strength);
+void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, 
+                    int *neigh_list_w, int *neigh_list_pw, 
+                    double strength, double *shear_pressure);
 
 void get_rel_vector(Inputs in, int t, double *pos_list_1, double *pos_list_2, 
                     int i, int j, double *Rij);
@@ -51,7 +52,8 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     FILE *wat_out = fopen("water.out", "w");
     FILE *part_out = fopen("particles.out", "w");
     FILE *temp_out = fopen("temp.out", "w");
-    FILE *visc_out = fopen("viscosity.out", "w");
+    FILE *shear_out = fopen("shear.out", "w");
+    FILE *pressure_out = fopen("pressure.out", "w");
 
     int update_req = 1;
 
@@ -146,7 +148,7 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             }            
 
             /* Velocity Verlet 3: F(t+dt) */
-            calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, strength);
+            calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, strength, NULL);
 
             /* Velocity Verlet 4: V(t+dt) */
             for (int i = 0; i < 3*in.N_WATER; i++) {
@@ -233,15 +235,18 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         }
 
         /* Velocity Verlet 3: F(t+dt) */
-        double viscosity = calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, 1.0);
+        double shear_pressure[4];
+        calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, 1.0, shear_pressure);
 
         /* The calculate_acc function updates the acceleration in the dyn_vars, 
-         * but also outputs a viscosity. Need to compute inside ths function as
-         * we need the individual forces between objects i, j, but we only
-         * have the combined force once the function returns. */
-        double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
-        viscosity /= -(box_vol);
-
+         * but updates the shears and pressures. Need to compute inside ths 
+         * function as we need the individual forces between objects i, j, but 
+         * we only have the combined force once the function returns. */
+        double shear_xy = shear_pressure[0];
+        double shear_xz = shear_pressure[1];
+        double shear_yz = shear_pressure[2];
+        double pressure = shear_pressure[3];
+    
         /* Velocity Verlet 4: V(t+dt) */
         for (int i = 0; i < 3*in.N_WATER; i++) {
             dyn_vars->watvel[i] += 0.5 * dt * dyn_vars->watacc[i];
@@ -298,8 +303,10 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
 
         /* At each time step, print the temperature. */
         fprintf(temp_out, "%d, %f\n", t, calc_temp(dyn_vars, in));
-        /* At each time step, print the viscosity. */
-        fprintf(visc_out, "%d, %f\n", t, viscosity);
+        /* At each time step, print the shears. */
+        fprintf(shear_out, "%d, %f, %f, %f\n", t, shear_xy, shear_xz, shear_yz);
+        /* At each time step, print the pressure. */
+        fprintf(pressure_out, "%d, %f\n", t, pressure);
 
         /* Print a message every 10% complete. */
         if (checkpoint != 0 && (t - t_after_settle) % checkpoint == 0) {
@@ -321,7 +328,8 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     fclose(wat_out);
     fclose(part_out);
     fclose(temp_out);
-    fclose(visc_out);
+    fclose(shear_out);
+    fclose(pressure_out);
 
     free(disp_list_w);
     free(disp_list_p);
@@ -386,7 +394,9 @@ void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, double *v
 }
 
 /* Calculate the forces acting on each water and particle. */
-double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neigh_list_w, int *neigh_list_pw, double strength) {
+void calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, 
+            int *neigh_list_w, int *neigh_list_pw, 
+            double strength, double *shear_pressure) {
 
     /* Zero out all accelerations. */
     for (int i = 0; i < 3*in.N_WATER; i++) {
@@ -396,7 +406,10 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neig
         dyn_vars->partacc[i] = 0;
     }
 
-    double viscosity = 0.0;
+    double shear_xy = 0.0;
+    double shear_xz = 0.0;
+    double shear_yz = 0.0;
+    double pressure = 0.0;
 
     /* Calculate sqrt of dt for use in F_r. Calculate it just once here. */
     double sqrt_dt = sqrt(in.TIME_STEP);
@@ -511,13 +524,22 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neig
              * taken to be exactly 1 by our definition of units.*/
             double A = (F_c + F_d + F_r);
 
-            /* Component from viscosity that comes from F_x * Rij_y.
+            /* Component from shear that comes from F_a * Rij_b with a != b.
              * This is summed over all (i, j) pairs with j > i and where there 
              * is a force between these 2 particles. This is why we do this loop
              * here, since here is where all the water-water interaction pairs 
              * reside. We only do 1 term for i and not for j since we need that
              * i < j. */
-            viscosity += A * Rij_norm[0] * Rij[1];
+            shear_xy += A * Rij_norm[0] * Rij[1];
+            shear_xz += A * Rij_norm[0] * Rij[2];
+            shear_yz += A * Rij_norm[1] * Rij[2];
+
+            /* Pressure is sum of r_ij dot F_ij. Recall that F_ij = A * Rij_norm.
+             * Once again, this is summed across all (i, j) with j > i, and this
+             * is exactly what this loop includes. */
+            pressure += A * (Rij_norm[0] * Rij[0] + 
+                             Rij_norm[1] * Rij[1] + 
+                             Rij_norm[2] * Rij[2]);
 
             /* Force by j on water i. */
             dyn_vars->watacc[3*i]   += A * Rij_norm[0];
@@ -540,11 +562,14 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neig
 
         int x = 3 * i;
         int y = x + 1;
+        int z = y + 1;
 
         /* Subtract away the x-velocity that comes from the shear flow. */
         double vx_corr = dyn_vars->watvel[x] - in.V_SHEAR * (dyn_vars->watpos[y] / in.BOX_SIZE - 0.5);
 
-        viscosity += vx_corr * dyn_vars->watvel[y];
+        shear_xy += vx_corr * dyn_vars->watvel[y];
+        shear_xz += vx_corr * dyn_vars->watvel[z];
+        shear_yz += dyn_vars->watvel[y] * dyn_vars->watvel[z];
     }
  
     /* -------------------------------------------------------------------- */
@@ -646,8 +671,15 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neig
             /* Total acceleration = Total F / m. */
             double A = (F_c + F_d + F_r) / in.M_PARTICLE;
 
-            /* Component from viscosity that comes from F_x * Rij_y. */
-            viscosity += in.M_PARTICLE * A * Rij_norm[0] * Rij[1];
+            /* Component from shear that comes from F_a * Rij_b, with a != b. */
+            shear_xy += in.M_PARTICLE * A * Rij_norm[0] * Rij[1];
+            shear_xz += in.M_PARTICLE * A * Rij_norm[0] * Rij[2];
+            shear_yz += in.M_PARTICLE * A * Rij_norm[1] * Rij[2];
+
+            /* Pressure is sum of r_ij dot F_ij. */
+            pressure += in.M_PARTICLE * A * (Rij_norm[0] * Rij[0] + 
+                                             Rij_norm[1] * Rij[1] + 
+                                             Rij_norm[2] * Rij[2]);
 
             /* Force by j on particle i. */
             dyn_vars->partacc[3*i]   += A * Rij_norm[0];
@@ -668,11 +700,14 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neig
 
             int x = 3 * i;
             int y = x + 1;
+            int z = y + 1;
 
             /* Subtract away the x-velocity that comes from the shear flow. */
             double vx_corr = dyn_vars->partvel[x] - in.V_SHEAR * (dyn_vars->partpos[y] / in.BOX_SIZE - 0.5);
 
-            viscosity += in.M_PARTICLE * vx_corr * dyn_vars->partvel[y];
+            shear_xy += in.M_PARTICLE * vx_corr * dyn_vars->partvel[y];
+            shear_xz += in.M_PARTICLE * vx_corr * dyn_vars->partvel[z];
+            shear_yz += in.M_PARTICLE * dyn_vars->partvel[y] * dyn_vars->partvel[z];
         }
     }
 
@@ -776,10 +811,18 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neig
             double A_w = (F_c + F_d + F_r);
             double A_p = A_w / in.M_PARTICLE;
 
-            /* Component from viscosity that comes from F_x * Rij_y. Here we use
-             * the force on the particle to calculate as the Rij vector is 
-             * calculated using i for the particle and j for the water. */
-            viscosity += in.M_PARTICLE * A_p * Rij_norm[0] * Rij[1];
+            /* Component from shear that comes from F_a * Rij_b with a != b. 
+             * Here we use the force on the particle to calculate as the Rij 
+             * vector is  calculated using i for the particle and j for the 
+             * water. */
+            shear_xy += in.M_PARTICLE * A_p * Rij_norm[0] * Rij[1];
+            shear_xz += in.M_PARTICLE * A_p * Rij_norm[0] * Rij[2];
+            shear_yz += in.M_PARTICLE * A_p * Rij_norm[1] * Rij[2];
+
+            /* Pressure is sum of r_ij dot F_ij. */
+            pressure += in.M_PARTICLE * A_p * (Rij_norm[0] * Rij[0] + 
+                                               Rij_norm[1] * Rij[1] + 
+                                               Rij_norm[2] * Rij[2]);
 
             /* Force by water j on particle i. */
             dyn_vars->partacc[3*i]   += A_p * Rij_norm[0];
@@ -793,7 +836,20 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p, int *neig
         }
     }
 
-    return viscosity;
+    double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
+    shear_xy /= -(box_vol);
+    shear_xz /= -(box_vol);
+    shear_yz /= -(box_vol);
+
+    pressure /= (3.0 * box_vol); 
+    pressure += (in.N_WATER / box_vol);
+
+    if (shear_pressure != NULL) {
+        shear_pressure[0] = shear_xy;
+        shear_pressure[1] = shear_xz;
+        shear_pressure[2] = shear_yz;
+        shear_pressure[3] = pressure;
+    }
 
 }
 
