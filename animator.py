@@ -18,10 +18,10 @@ ANIMATE_WATER   = False # Plot the water objects (since there are so many)
 PLOT_TEMP       = True # Plot the temperature-time curve 
 PLOT_MAXBOLTZ   = False # Plot the velocity distribution of water at the last time step
 PLOT_CROSSFLOW  = False # Plot the x-velocity distribution of water against y-position at the last time step
-PLOT_VISC       = True # Plot the viscosity-time curve
+PLOT_VISC       = False # Plot the viscosity-time curve. Deprecated for now due to implementation in C.
 PLOT_SQ_DISP_W  = False # Plot the squared-displacement of water
 PLOT_SQ_DISP_P  = False  # Plot the squared-displacement of particles
-PLOT_PRESSURE   = False  # Plot the pressure-time curve
+PLOT_PRESSURE   = True  # Plot the pressure-time curve
 
 NUM_INPUTS      = 15    # How many inputs there are to be read from inputs.in
 
@@ -242,15 +242,11 @@ if PLOT_TEMP:
 if PLOT_VISC:
     # Read visc file to get the visc results
     with open("shear.out","r") as s:
-        shear_data = s.readlines()
+        shear_xy_data = s.readlines()
 
-    # Split by comma and grab all columns except the first, which is the time
-    shears = np.array([shear_entry.split(',')[1:] for shear_entry in shear_data])
-    shears = shears.astype(float)
-
-    shear_xy = shears[:,0]
-    shear_xz = shears[:,1]
-    shear_yz = shears[:,2]
+    # Split by comma and grab all columns except the last which is a linebreak
+    shear_xy = np.array([shear_xy_entry.split(',')[:-1] for shear_xy_entry in shear_xy_data])
+    shear_xy = shear_xy.astype(float)
 
     times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)
 
@@ -482,28 +478,24 @@ if PLOT_VISC:
 
     # Chop each one to half its length to discard the first half
     shear_xy = shear_xy[len(shear_xy)//2:]
-    shear_xz = shear_xz[len(shear_xz)//2:]
-    shear_yz = shear_yz[len(shear_yz)//2:]
     times_chopped = times[len(times)//2:]
 
     # Number of time steps we are doing the integral over
     n_time_int = len(shear_xy)
     integrated_viscosity = 0
 
-    # Delay time between left and right window (index)
+    # Sum over various delay times (between left and right window) (index)
     for t_d in range(n_time_int):
-        # Start index for each window
-        for t_start in range(n_time_int - t_d):
-            integrated_viscosity += (shear_xy[t_start] * shear_xy[t_start + t_d]) / (n_time_int - t_d) 
-            integrated_viscosity += (shear_xz[t_start] * shear_xz[t_start + t_d]) / (n_time_int - t_d) 
-            integrated_viscosity += (shear_yz[t_start] * shear_yz[t_start + t_d]) / (n_time_int - t_d) 
+        # Sum over all particles
+        for obj in range(N_WATER + N_PARTICLES):
+            # Start index for each window
+            for t_start in range(n_time_int - t_d):
+                integrated_viscosity += (shear_xy[t_start, obj] * shear_xy[t_start + t_d, obj]) / (n_time_int - t_d) 
 
     integrated_viscosity *= TIME_STEP * (BOX_SIZE ** 3)
     integrated_viscosity /= 3
 
-    ax.plot(times_chopped, shear_xy)
-    ax.plot(times_chopped, shear_xz)
-    ax.plot(times_chopped, shear_yz)
+    #ax.plot(times_chopped, shear_xy)
 
     x_lim = ax.get_xlim()
     y_lim = ax.get_ylim()

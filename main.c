@@ -17,6 +17,8 @@ int main (void) {
     evolve_system(dyn_vars, inputs);
     diff = clock() - start;
 
+    calc_viscosity(inputs);
+
     output_state(dyn_vars, inputs);
     terminate(dyn_vars);
 

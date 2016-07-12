@@ -4,6 +4,7 @@
 #define DEBUG 0
 #define VERBOSE 0
 
+/* SHOULD BE 0 */
 #define TWO_D 0
 
 #define PRINT_WATER 0
@@ -52,5 +53,6 @@ typedef struct {
  * defined to be 1 in utils.h.
  */ 
 void evolve_system(Dyn_Vars *dyn_vars, Inputs in);
+void calc_viscosity();
 
 #endif /* SIM_H */
