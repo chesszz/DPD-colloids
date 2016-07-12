@@ -1,4 +1,3 @@
-#include "utils.h"
 #include "init.h"
 #include "sim.h"
 #include "terminate.h"

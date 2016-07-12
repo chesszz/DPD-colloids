@@ -1,4 +1,3 @@
-#include "utils.h"
 #include "sim.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,10 +6,9 @@
 
 /* Interaction distance of water */
 #define R_SS 1.0 /* DO NOT CHANGE */
-
+/* Defines how big the skin is for the updating of neighbour list, affects the 
+ * speed of simulation but not accuracy */
 #define SKIN 1.0
-#define PRINT_PARTICLES 0
-#define PRINT_WATER 0
 
 void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, 
                     double *vel_list, int num_obj);
@@ -241,9 +239,8 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
          * but also outputs a viscosity. Need to compute inside ths function as
          * we need the individual forces between objects i, j, but we only
          * have the combined force once the function returns. */
-        double shear_rate = in.V_SHEAR / in.BOX_SIZE;
         double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
-        viscosity /= -(box_vol * shear_rate);
+        viscosity /= -(box_vol);
 
         /* Velocity Verlet 4: V(t+dt) */
         for (int i = 0; i < 3*in.N_WATER; i++) {

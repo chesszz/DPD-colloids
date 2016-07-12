@@ -1,7 +1,18 @@
+Todo:
+------
+! Check calculation for viscosity ???
+    - Green-Kubo
+    - Pouiselle Flow
 - Add in 3D rotation etc          ???
-- Check calculation for viscosity ???
 
-- Packing/Jamming
+
+Future Investigations:
+----------------------
+    - Packing/Jamming state -- phi very near phi_max -- Flowability of water at such scales
+    - Nonhomogeneous particle sizes -- Similar to how the supercooled water has varying sizes of "solid" water
+
+Reference:
+----------
 - Pryamitsyn OR Pan papers (both adaptations of Fluid Particle Model but with different potentials)
     - Pryamitsyn has soft Solvent-Solvent forces and LJ potentials for Solvent-Colloid and Colloid-Colloid
     - Pan has soft S-S, very soft C-S and hard C-C. (page ~83 pdf pagenum)

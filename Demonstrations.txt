@@ -1,0 +1,9 @@
+1) No Shear, 2D     (N = 20, t = 500, shear = 0, box = 8)
+2) No Shear, 3D
+3) Shear, 3D        (shear = 5)
+4) Plot temp & MB   (N = 500, shear 0.5, box = 5, off output and animate)
+5) Plot sq_disp     (N = 100, on output)
+
+
+PLOT_CROSSFLOW
+PLOT_VISC

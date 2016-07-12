@@ -1,6 +1,8 @@
 #ifndef INIT_H
 #define INIT_H
 
+#include "sim.h"
+
 /* Reads inputs from stdin that correspond to the vaious parameters. Returns
  * an Inputs struct that stores those parameters.
  */

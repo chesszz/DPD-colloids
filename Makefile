@@ -13,7 +13,15 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 	
 clean:
-	rm *.o $(EXECUTABLE)
+	rm -f *.o $(EXECUTABLE)
 
 .PHONY:
 	clean
+
+# depend: .depend
+
+# .depend: $(SOURCES) 
+# 	rm -f ./.depend
+# 	$(CC) $(CFLAGS) -MM $^ -MF  ./.depend;
+
+include .depend

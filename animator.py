@@ -12,24 +12,28 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
-ANIMATE         = True
-TILE            = True
-ANIMATE_WATER   = True
-PLOT_TEMP       = False
-PLOT_MAXBOLTZ   = False
-PLOT_CROSSFLOW  = False
-PLOT_VISC       = False
-PLOT_SQ_DISP    = False
+ANIMATE         = False # Plot the particles moving around. 
+TILE            = False # Plot the replicated units
+ANIMATE_WATER   = False # Plot the water objects (since there are so many)
+PLOT_TEMP       = True # Plot the temperature-time curve 
+PLOT_MAXBOLTZ   = False # Plot the velocity distribution of water at the last time step
+PLOT_CROSSFLOW  = False # Plot the x-velocity distribution of water against y-position at the last time step
+PLOT_VISC       = True # Plot the viscosity-time curve
+PLOT_SQ_DISP_W  = False # Plot the squared-displacement of water
+PLOT_SQ_DISP_P  = False  # Plot the squared-displacement of particles
 
-NUM_INPUTS      = 15
-R_WATER         = 0.5
+NUM_INPUTS      = 15    # How many inputs there are to be read from inputs.in
 
+R_WATER         = 0.5   # Radius of water -- set to be 0.5 by definition of length scale
 R_PARTICLE_SOFT = 2.5   # Particles / Water objects attract at this shell
 R_PARTICLE      = 2.225 # Particles repel at this shell
 R_PARTICLE_INNER= 1.95  # Water objects repel at this shell
 
 #------------------------------------------------------------
 
+# Reads the output file, strips out the first row, and returns all the remaining
+# data in a numpy array with first index representing rows and 2nd index
+# representing columns
 def parse_whole_output(filename):
     with open(filename,"r") as f:
         data = f.readlines()
@@ -46,16 +50,20 @@ def parse_whole_output(filename):
     # Convert to np array to use multiple indexing syntax and return
     return np.array(data)
 
-def parse_output_final_timestep(filename, n_obj, n_step):
+# Reads the output file, and ONLY returns the n_obj rows of data in a numpy 
+# array with first index representing rows and 2nd index representing columns.
+# This corresponds with only reading the data from the last time step.
+def parse_output_final_timestep(filename, n_obj):
 
+    # Count how many lines in this file
     num_lines = 0
-    with open("water.out", "r") as f:
+    with open(filename, "r") as f:
         while f.readline() != "":
             num_lines += 1
             
-    # Grab only the last N_WATER steps
-    with open("water.out","r") as f:
-        data_last = [line for index, line in enumerate(f) if index > (num_lines - N_WATER - 1)]
+    # Grab only the last n_obj steps
+    with open(filename,"r") as f:
+        data_last = [line for index, line in enumerate(f) if index > (num_lines - n_obj - 1)]
 
     # Split each line by commas, and then convert each entry from str->float
     for index, line in enumerate(data_last):
@@ -68,7 +76,7 @@ def parse_output_final_timestep(filename, n_obj, n_step):
 
 # Takes in a data list and outputs the x and y coordinates of the objects in the
 # list. N represents the number of objects, i is the time at which we want these
-# positions. The replication of the lsits with various displacements represent
+# positions. The replication of the lists with various displacements represent
 # the tilings. 2 and 3 represent the fact that x and y positions are represented
 # as in the 2 and 3 entries of each row. 
 def data_tiling(i, data_list, N, range_x, xmin):
@@ -77,9 +85,9 @@ def data_tiling(i, data_list, N, range_x, xmin):
         return ([],[])
 
     try:
-        t = (i + wat_data[0, 0]) * TIME_STEP
-    except (IndexError, NameError):
         t = (i + part_data[0, 0]) * TIME_STEP
+    except (IndexError, NameError):
+        t = (i + wat_data[0, 0]) * TIME_STEP
 
     x = (list(data_list[N*i:N*i+N, 2])                                              +  # mid
         [(a+t*V_SHEAR-xmin)%range_x+xmin          for a in data_list[N*i:N*i+N, 2]] +  # top                                       
@@ -103,6 +111,10 @@ def data_tiling(i, data_list, N, range_x, xmin):
 
     return (x,y)
 
+# Takes in a data_list which holds the details of each particle at each time
+# and outputs the x and y coordinates of all objects at time i. 2 and 3 
+# represent the fact that x and y positions are represented as in the 2nd and 
+# 3rd entries of each row. 
 def data_nontile(i, data_list, N):
 
     if N == 0:
@@ -110,6 +122,61 @@ def data_nontile(i, data_list, N):
 
     return (data_list[N*i : N*i+N, 2],
             data_list[N*i : N*i+N, 3])
+
+# Plots the squared displacemnts of particles from a particular data list
+# ax specifies which axes to plot on, colour is a string for the colour of the
+# lines that we should draw
+def plot_sq_disp(data_list, N, ax, colour):
+    # Repeat this loop for every particle present
+    for i in range(N):
+
+        # Take initial data from row i --> Particle i
+        # 2, 3, 4 refer to the x, y, z coordiates being in these respective
+        # columns of the data
+        x0 = data_list[i, 2]
+        y0 = data_list[i, 3]
+        z0 = data_list[i, 4]
+
+        x_prev = x0
+        y_prev = y0
+        z_prev = z0
+
+        pass_x = 0
+        pass_y = 0
+        pass_z = 0
+
+        disp_sq = []
+        
+        # Skip with a stride of N to take data only for the i-th object
+        for row in data_list[i::N]:
+
+            # Confirm it's object i
+            assert(row[1] == i)
+
+            x = row[2] + pass_x * BOX_SIZE
+            y = row[3] + pass_y * BOX_SIZE
+            z = row[4] + pass_z * BOX_SIZE
+
+            # If x moved off the right side, then x_prev would be large while 
+            # x would be ~0, therefore (x - x_prev) < 0, and we need to add 1 to
+            # our new x value to reflect that it moved off the right.
+            if (abs(x - x_prev)) > 0.8 * BOX_SIZE:
+                pass_x -= np.sign(x - x_prev)
+                x = row[2] + pass_x * BOX_SIZE
+            if (abs(y - y_prev)) > 0.8 * BOX_SIZE:
+                pass_y -= np.sign(y - y_prev)
+                y = row[3] + pass_y * BOX_SIZE
+            if (abs(z - z_prev)) > 0.8 * BOX_SIZE:
+                pass_z -= np.sign(z - z_prev)
+                z = row[4] + pass_z * BOX_SIZE
+
+            disp_sq.append((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2)
+
+            x_prev = x
+            y_prev = y
+            z_prev = z
+
+        ax.plot(disp_sq, c=colour)
 
 #------------------------------------------------------------
 ### READ FROM INPUT FILE ###
@@ -146,14 +213,14 @@ V_SHEAR     = input_dict["V_SHEAR"]
 ### READ FROM DYN FILE ###
 
 # Read the entire water and partcle file to get the simulation results for all time
-if ANIMATE or PLOT_SQ_DISP:
+if ANIMATE or PLOT_SQ_DISP_P:
     part_data = parse_whole_output("particles.out")
-if ANIMATE_WATER:
+if ANIMATE_WATER or PLOT_SQ_DISP_W:
     wat_data  = parse_whole_output("water.out")
 
 # Only read the last time step of water results
 if PLOT_MAXBOLTZ or PLOT_CROSSFLOW:
-   wat_data_last = parse_output_final_timestep("water.out", N_WATER, N_STEPS)
+   wat_data_last = parse_output_final_timestep("water.out", N_WATER)
     
 #------------------------------------------------------------
 ### READ FROM TEMP FILE ###
@@ -299,9 +366,9 @@ if ANIMATE:
         range_x = xmax - xmin
 
         try:
-            t = (i + wat_data[0, 0]) * TIME_STEP
-        except (IndexError, NameError):
             t = (i + part_data[0, 0]) * TIME_STEP
+        except (IndexError, NameError):
+            t = (i + wat_data[0, 0]) * TIME_STEP
 
         if TILE: 
             
@@ -395,18 +462,32 @@ if PLOT_VISC:
     ax = plt.subplot()
 
     quart_visc = visc[3*len(visc)//4:]
-    avg_quart_visc = np.mean(quart_visc)
-    quart_visc_stdev = np.std(quart_visc)
+
+    # Number of time steps we are doing the integral over
+    n_time_int = len(visc)
+    integrated_viscosity = 0
+
+    # Delay time between left and right window (index)
+    for t_d in range(n_time_int):
+        # Start index for each window
+        for t_start in range(n_time_int - t_d):
+            integrated_viscosity += (visc[t_start] * visc[t_start + t_d]) / (n_time_int - t_d) 
+
+    integrated_viscosity *= TIME_STEP * (BOX_SIZE ** 3)
+
+    # avg_quart_visc = np.mean(quart_visc)
+    # quart_visc_stdev = np.std(quart_visc)
 
     ax.plot(times, visc)
-    ax.plot(times, avg_quart_visc * np.ones(len(times)), 'k', linewidth='3.0')
-    ax.plot(times, (avg_quart_visc + quart_visc_stdev) * np.ones(len(times)), 'r--')
-    ax.plot(times, (avg_quart_visc - quart_visc_stdev) * np.ones(len(times)), 'r--')
+    # ax.plot(times, avg_quart_visc * np.ones(len(times)), 'k', linewidth='3.0')
+    # ax.plot(times, (avg_quart_visc + quart_visc_stdev) * np.ones(len(times)), 'r--')
+    # ax.plot(times, (avg_quart_visc - quart_visc_stdev) * np.ones(len(times)), 'r--')
 
     x_lim = ax.get_xlim()
     y_lim = ax.get_ylim()
 
-    ax.text(x_lim[0], y_lim[0], 'Average last quarter viscosity: {0:.4} $\\pm$ {1:.4}'.format(avg_quart_visc, quart_visc_stdev), fontsize=12)
+    # ax.text(x_lim[0], y_lim[0], 'Average last quarter viscosity: {0:.4} $\\pm$ {1:.4}'.format(avg_quart_visc, quart_visc_stdev), fontsize=12)
+    ax.text(x_lim[0], y_lim[0], 'Integrated viscosity over last {0} steps: {1:.4}'.format(n_time_int, integrated_viscosity), fontsize=12)
 
 if PLOT_MAXBOLTZ:
     plt.figure()
@@ -474,51 +555,14 @@ if PLOT_CROSSFLOW:
     ax2.set_ylim([0, sum(count_list)/4])
 
 
-if PLOT_SQ_DISP:
-    x0 = part_data[0, 2]
-    y0 = part_data[0, 3]
-    z0 = part_data[0, 4]
-
-    x_prev = x0
-    y_prev = y0
-    z_prev = z0
-
-    pass_x = 0
-    pass_y = 0
-    pass_z = 0
-
-    disp_sq = []
-    
-    # Only take data for the 1st particle
-    for row in part_data[0::N_PARTICLES]:
-        # Confirm it's particle 0
-        assert(row[1] == 0)
-
-        x = row[2] + pass_x * BOX_SIZE
-        y = row[3] + pass_y * BOX_SIZE
-        z = row[4] + pass_z * BOX_SIZE
-
-        # If x moved off the right side, then x_prev would be large while 
-        # x would be ~0, therefore (x - x_prev) < 0, and we need to add 1 to
-        # our new x value to reflect that it moved off the right.
-        if (abs(x - x_prev)) > 0.8 * BOX_SIZE:
-            pass_x -= np.sign(x - x_prev)
-            x = row[2] + pass_x * BOX_SIZE
-        if (abs(y - y_prev)) > 0.8 * BOX_SIZE:
-            pass_y -= np.sign(y - y_prev)
-            y = row[3] + pass_y * BOX_SIZE
-        if (abs(z - z_prev)) > 0.8 * BOX_SIZE:
-            pass_z -= np.sign(z - z_prev)
-            z = row[4] + pass_z * BOX_SIZE
-
-        disp_sq.append((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2)
-
-        x_prev = x
-        y_prev = y
-        z_prev = z
-
+if PLOT_SQ_DISP_W or PLOT_SQ_DISP_P:
     plt.figure()
-    plt.plot(disp_sq)
+    ax = plt.subplot()
+
+    if PLOT_SQ_DISP_W:
+        plot_sq_disp(wat_data, N_WATER, ax, 'blue')
+    if PLOT_SQ_DISP_P:
+        plot_sq_disp(part_data, N_PARTICLES, ax, 'brown')
     
 plt.show()
 plt.close()

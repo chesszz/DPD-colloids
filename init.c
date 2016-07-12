@@ -1,9 +1,7 @@
-#include "utils.h"
+#include "sim.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-
-#define TWO_D 0
 
 void fill_gaussian_two_tuple(double *tuple, double stdev);
 void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num, double mass);

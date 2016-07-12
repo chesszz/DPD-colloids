@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "utils.h"
+#include "sim.h"
 
 /* Prints some stats on the screen. */
 void output_state(Dyn_Vars *dyn_vars, Inputs in) {

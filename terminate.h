@@ -1,7 +1,7 @@
 #ifndef TERMINATE_H
 #define TERMINATE_H
 
-#include "utils.h"
+#include "sim.h"
 
 /* Prints some stats on the screen. */
 void output_state(Dyn_Vars *dyn_vars, Inputs in);

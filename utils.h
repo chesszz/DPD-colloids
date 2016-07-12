@@ -4,6 +4,11 @@
 #define DEBUG 0
 #define VERBOSE 0
 
+#define TWO_D 1
+
+#define PRINT_WATER 1
+#define PRINT_PARTICLES 1
+
 /* Used to contain all the input parameters to be passed around. */
 typedef struct {
     int N_WATER;
