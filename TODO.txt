@@ -1,9 +1,7 @@
 Todo:
 ------
-! Check calculation for viscosity ???
-    - Green-Kubo
-    - Pouiselle Flow
-- Add in 3D rotation etc          ???
+- Check calculation for viscosity
+    - Green-Kubo (indiv. particles version)
 
 
 Future Investigations:

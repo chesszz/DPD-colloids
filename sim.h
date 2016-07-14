@@ -10,6 +10,9 @@
 #define PRINT_WATER 0
 #define PRINT_PARTICLES 0
 
+/* SHOULD BE 1 */
+#define OFF_AXIS_FORCE_ON 1
+
 /* Used to contain all the input parameters to be passed around. */
 typedef struct {
     int N_WATER;
@@ -39,13 +42,13 @@ typedef struct {
     double *watvel;
     double *watacc;
     double *watomg;
-    double *wattoq;
+    double *watalp;
 
     double *partpos;
     double *partvel;
     double *partacc;
     double *partomg;
-    double *parttoq;
+    double *partalp;
 } Dyn_Vars;
 
 /* Evolves the system from the given initial conditions and input parameters.

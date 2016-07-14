@@ -17,9 +17,15 @@ void terminate(Dyn_Vars *dyn_vars) {
     free(dyn_vars->watpos);
     free(dyn_vars->watvel); 
     free(dyn_vars->watacc);
+    free(dyn_vars->watomg);
+    free(dyn_vars->watalp);
+
     free(dyn_vars->partpos);
     free(dyn_vars->partvel);
     free(dyn_vars->partacc);
+    free(dyn_vars->partomg);
+    free(dyn_vars->partalp);
+
     free(dyn_vars);
 
 }

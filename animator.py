@@ -231,9 +231,11 @@ if PLOT_TEMP:
     with open("temp.out","r") as t:
         temp_data = t.readlines()
 
-    # Split by space and grab the last part, which is the temp, and then convert
+    # Split by comma and grab the 2nd and 3rd parts which represent the 
+    # translational and rotational temperatures respectively, and then convert
     # to float.
-    temp = [float(temp_entry.split()[-1]) for temp_entry in temp_data]
+    temp = [float(temp_entry.split(",")[1]) for temp_entry in temp_data]
+    temp_rot = [float(temp_entry.split(",")[2]) for temp_entry in temp_data]
     times = np.arange(0, N_STEPS * TIME_STEP, TIME_STEP)
 
 #------------------------------------------------------------
@@ -461,16 +463,31 @@ if ANIMATE:
 if PLOT_TEMP:
     plt.figure()
     ax = plt.subplot()
-    ax.set_ylim([0, 3])
-
-    ax.plot(times, temp)
-    ax.plot(times, np.ones(len(times)))
+    ylims = [0.85, 1.15]
+    ax.set_ylim(ylims)
 
     quart_temp = temp[3*len(temp)//4:]
     avg_quart_temp = np.mean(quart_temp)
     quart_temp_stdev = np.std(quart_temp)
 
-    ax.text(0, 0, 'Average last quarter temp: {0:.5} $\\pm$ {1:.4}'.format(avg_quart_temp, quart_temp_stdev), fontsize=12)
+    quart_temp_rot = temp_rot[3*len(temp_rot)//4:]
+    avg_quart_temp_rot = np.mean(quart_temp_rot)
+    quart_temp_stdev_rot = np.std(quart_temp_rot)
+
+    ax.plot(times, temp, 'b')
+    ax.plot(times[3*len(times)//4:], avg_quart_temp * np.ones(len(times)//4), 'b', linewidth='3.0')
+    # ax.plot(times, (avg_quart_temp + quart_temp_stdev) * np.ones(len(times)), 'b--')
+    # ax.plot(times, (avg_quart_temp - quart_temp_stdev) * np.ones(len(times)), 'b--')
+
+    ax.plot(times, temp_rot, 'r')
+    ax.plot(times[3*len(times)//4:], avg_quart_temp_rot * np.ones(len(times)//4), 'r', linewidth='3.0')
+    # ax.plot(times, (avg_quart_temp_rot + quart_temp_stdev_rot) * np.ones(len(times)), 'r--')
+    # ax.plot(times, (avg_quart_temp_rot - quart_temp_stdev_rot) * np.ones(len(times)), 'r--')
+
+    ax.plot(times, np.ones(len(times)), 'g')
+
+    ax.text(0, ylims[0], 'Average last quarter translational temp: {0:.5} $\\pm$ {1:.4}'.format(avg_quart_temp, quart_temp_stdev), fontsize=12)
+    ax.text(0, ylims[0] + 0.05 * (ylims[1] - ylims[0]), 'Average last quarter rotational temp: {0:.5} $\\pm$ {1:.4}'.format(avg_quart_temp_rot, quart_temp_stdev_rot), fontsize=12)
 
 if PLOT_VISC:
     plt.figure()

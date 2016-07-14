@@ -6,10 +6,12 @@
 
 /* Interaction distance of water */
 #define R_SS 1.0 /* DO NOT CHANGE */
+#define M_WATER 1 /* DO NOT CHANGE */
 /* Defines how big the skin is for the updating of neighbour list, affects the 
  * speed of simulation but not accuracy */
 #define SKIN 1.0
 
+double random_num(double variance);
 void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, 
                     double *vel_list, int num_obj);
 
@@ -30,6 +32,17 @@ void update_neigh_list_pw(Inputs in, int t,
 
 int check_update_req(double *disp_list_w, double *disp_list_p, int n_w, int n_p);
 double calc_temp(Dyn_Vars *dyn_vars, Inputs in);
+double calc_temp_rot(Dyn_Vars *dyn_vars, Inputs in);
+
+double random_num(double variance) {
+    /* Variance of a uniform distribution is 1/12 * interval^2.
+     * Therefore, for mean = 0 and variance = v, assume we have -x/2
+     * to x/2, then 1/12 * x^2 = v ==> x = sqrt(12v). Note 
+     * that we first scale from 0 ~ RAND_MAX ==> 0 ~ 1 ==> 
+     * -1/2 ~ 1/2 ==> -sqrt(12v)/2 ~ sqrt(12v)/2.
+     */
+    return sqrt(12 * variance) * ((rand()/(double) RAND_MAX) - 0.5);
+}
 
 /* Evolves the system from the given initial conditions and input parameters.
  * Will print the variables' time evolution into a file.
@@ -83,10 +96,12 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         exit(1);
     }
 
-    fprintf(wat_out, "Time Step, Water Number, Position, Velocity, Acceleration\n");
-    fprintf(part_out, "Time Step, Particle Number, Position, Velocity, Acceleration\n");
+    fprintf(wat_out, "Time Step, Water Number, Position, Velocity, Acceleration, Angular Velocity, Angular Acceleration\n");
+    fprintf(part_out, "Time Step, Particle Number, Position, Velocity, Acceleration, Angular Velocity, Angular Acceleration\n");
 
-    /* STABILISING LOOP. */
+    /*------------------------------------------------------------------------*/
+    /* STABILISING LOOP.                                                      */
+    /*------------------------------------------------------------------------*/
     for (int inc = 1; inc < num_inc; inc++) {
 
         /* inc ranges from 1 ~ (num_inc - 1)
@@ -98,15 +113,25 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
 
             (dyn_vars->t)++;
 
-            /* Velocity Verlet 1: V0(t+0.5*dt) */
+            /*----------------------------------------------------------------*/
+            /* Velocity Verlet 1: V0(t+0.5*dt)                                */
+            /*----------------------------------------------------------------*/
             for (int i = 0; i < 3*in.N_WATER; i++) {
                 dyn_vars->watvel[i] += 0.5 * dt * dyn_vars->watacc[i];
+            }
+            for (int i = 0; i < 3*in.N_WATER; i++) {
+                dyn_vars->watomg[i] += 0.5 * dt * dyn_vars->watalp[i];
             }
             for (int i = 0; i < 3*in.N_PARTICLES; i++) {
                 dyn_vars->partvel[i] += 0.5 * dt * dyn_vars->partacc[i];
             }
+            for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+                dyn_vars->partomg[i] += 0.5 * dt * dyn_vars->partalp[i];
+            }
 
-            /* Velocity Verlet 2: R(t+dt) */
+            /*----------------------------------------------------------------*/
+            /* Velocity Verlet 2: R(t+dt)                                     */
+            /*----------------------------------------------------------------*/
             for (int i = 0; i < 3*in.N_WATER; i++) {
                 /* displacement = v * dt */
                 disp = dt * dyn_vars->watvel[i];
@@ -126,6 +151,9 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
                 disp_list_p[i]       += (disp + (i % 3 == 0) * in.V_SHEAR * dt);
             }
 
+            /*----------------------------------------------------------------*/
+            /* Position wrapping and list updates                             */
+            /*----------------------------------------------------------------*/
             /* Wrap the objects back to the box if they escaped. Handle both water
              * and particles. */
             refold_positions(dyn_vars, in, dyn_vars->watpos, dyn_vars->watvel, in.N_WATER);
@@ -150,15 +178,25 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
                 update_req = 0;       
             }            
 
-            /* Velocity Verlet 3: F(t+dt) */
+            /*----------------------------------------------------------------*/
+            /* Velocity Verlet 3: F(t+dt)                                     */
+            /*----------------------------------------------------------------*/
             calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, strength, shear_xy);
 
-            /* Velocity Verlet 4: V(t+dt) */
+            /*----------------------------------------------------------------*/
+            /* Velocity Verlet 4: V(t+dt)                                     */
+            /*----------------------------------------------------------------*/
             for (int i = 0; i < 3*in.N_WATER; i++) {
                 dyn_vars->watvel[i] += 0.5 * dt * dyn_vars->watacc[i];
             }
+            for (int i = 0; i < 3*in.N_WATER; i++) {
+                dyn_vars->watomg[i] += 0.5 * dt * dyn_vars->watalp[i];
+            }
             for (int i = 0; i < 3*in.N_PARTICLES; i++) {
                 dyn_vars->partvel[i] += 0.5 * dt * dyn_vars->partacc[i];
+            }            
+            for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+                dyn_vars->partomg[i] += 0.5 * dt * dyn_vars->partalp[i];
             }
 
             /* Check if the objects have moved too much since the last update
@@ -180,15 +218,25 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
 
         (dyn_vars->t)++;
 
-        /* Velocity Verlet 1: V0(t+0.5*dt) */
+        /*--------------------------------------------------------------------*/
+        /* Velocity Verlet 1: V0(t+0.5*dt)                                    */
+        /*--------------------------------------------------------------------*/
         for (int i = 0; i < 3*in.N_WATER; i++) {
             dyn_vars->watvel[i] += 0.5 * dt * dyn_vars->watacc[i];
+        }
+        for (int i = 0; i < 3*in.N_WATER; i++) {
+            dyn_vars->watomg[i] += 0.5 * dt * dyn_vars->watalp[i];
         }
         for (int i = 0; i < 3*in.N_PARTICLES; i++) {
             dyn_vars->partvel[i] += 0.5 * dt * dyn_vars->partacc[i];
         }
+        for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+            dyn_vars->partomg[i] += 0.5 * dt * dyn_vars->partalp[i];
+        }
 
-        /* Velocity Verlet 2: R(t+dt) */
+        /*--------------------------------------------------------------------*/
+        /* Velocity Verlet 2: R(t+dt)                                         */
+        /*--------------------------------------------------------------------*/
         for (int i = 0; i < 3*in.N_WATER; i++) {
             /* displacement = v * dt */
             disp = dt * dyn_vars->watvel[i];
@@ -208,6 +256,9 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             disp_list_p[i]       += (disp + (i % 3 == 0) * in.V_SHEAR * dt);
         }
 
+        /*--------------------------------------------------------------------*/
+        /* Position wrapping and list updates                                 */
+        /*--------------------------------------------------------------------*/
         /* Wrap the objects back to the box if they escaped. Handle both water
          * and particles. */
         refold_positions(dyn_vars, in, dyn_vars->watpos, dyn_vars->watvel, in.N_WATER);
@@ -237,24 +288,33 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             update_req = 0;       
         }
 
+        /*--------------------------------------------------------------------*/
+        /* Velocity Verlet 3: F(t+dt)                                         */
+        /*--------------------------------------------------------------------*/
         /* Zero out the list of shears. */
         for (int i = 0; i < (in.N_WATER + in.N_PARTICLES); i++) {
             shear_xy[i] = 0;
         }
-        /* Velocity Verlet 3: F(t+dt) */
         double pressure = calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, 1.0, shear_xy);
-
         /* The calculate_acc function updates the acceleration in the dyn_vars, 
-         * but updates the shears and pressures. Need to compute inside ths 
+         * but also updates the shears and pressures. Need to compute inside this 
          * function as we need the individual forces between objects i, j, but 
          * we only have the combined force once the function returns. */
     
-        /* Velocity Verlet 4: V(t+dt) */
+        /*--------------------------------------------------------------------*/
+        /* Velocity Verlet 4: V(t+dt)                                         */
+        /*--------------------------------------------------------------------*/
         for (int i = 0; i < 3*in.N_WATER; i++) {
             dyn_vars->watvel[i] += 0.5 * dt * dyn_vars->watacc[i];
         }
+        for (int i = 0; i < 3*in.N_WATER; i++) {
+            dyn_vars->watomg[i] += 0.5 * dt * dyn_vars->watalp[i];
+        }
         for (int i = 0; i < 3*in.N_PARTICLES; i++) {
             dyn_vars->partvel[i] += 0.5 * dt * dyn_vars->partacc[i];
+        }
+        for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+            dyn_vars->partomg[i] += 0.5 * dt * dyn_vars->partalp[i];
         }
 
         /* Check if the objects have moved too much since the last update
@@ -262,6 +322,9 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
          */
         update_req = check_update_req(disp_list_w, disp_list_p, in.N_WATER, in.N_PARTICLES);
 
+        /*--------------------------------------------------------------------*/
+        /* Printing and ouputs                                                */
+        /*--------------------------------------------------------------------*/
         /* Print out the positions and velocities of everything for each t. */
         #if VERBOSE
             for (int i = 0; i < in.N_WATER; i++) {
@@ -285,26 +348,30 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
          */
         #if PRINT_WATER
             for (int i = 0; i < in.N_WATER; i++) {
-                fprintf(wat_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
+                fprintf(wat_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
                     t, i,
                     dyn_vars->watpos[3*i], dyn_vars->watpos[3*i+1], dyn_vars->watpos[3*i+2], 
                     dyn_vars->watvel[3*i], dyn_vars->watvel[3*i+1], dyn_vars->watvel[3*i+2],
-                    dyn_vars->watacc[3*i], dyn_vars->watacc[3*i+1], dyn_vars->watacc[3*i+2]);
+                    dyn_vars->watacc[3*i], dyn_vars->watacc[3*i+1], dyn_vars->watacc[3*i+2],
+                    dyn_vars->watomg[3*i], dyn_vars->watomg[3*i+1], dyn_vars->watomg[3*i+2],
+                    dyn_vars->watalp[3*i], dyn_vars->watalp[3*i+1], dyn_vars->watalp[3*i+2]);
             }
         #endif
 
         #if PRINT_PARTICLES
             for (int i = 0; i < in.N_PARTICLES; i++) {
-                fprintf(part_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
+                fprintf(part_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
                     t, i, 
                     dyn_vars->partpos[3*i], dyn_vars->partpos[3*i+1], dyn_vars->partpos[3*i+2], 
                     dyn_vars->partvel[3*i], dyn_vars->partvel[3*i+1], dyn_vars->partvel[3*i+2],
-                    dyn_vars->partacc[3*i], dyn_vars->partacc[3*i+1], dyn_vars->partacc[3*i+2]);
+                    dyn_vars->partacc[3*i], dyn_vars->partacc[3*i+1], dyn_vars->partacc[3*i+2],
+                    dyn_vars->partomg[3*i], dyn_vars->partomg[3*i+1], dyn_vars->partomg[3*i+2],
+                    dyn_vars->partalp[3*i], dyn_vars->partalp[3*i+1], dyn_vars->partalp[3*i+2]);
             }
         #endif
 
         /* At each time step, print the temperature. */
-        fprintf(temp_out, "%d, %f\n", t, calc_temp(dyn_vars, in));
+        fprintf(temp_out, "%d, %f, %f\n", t, calc_temp(dyn_vars, in), calc_temp_rot(dyn_vars, in));
 
         /* At each time step, print the shears. */
         for (int i = 0; i < (in.N_WATER + in.N_PARTICLES); i++) {
@@ -324,11 +391,13 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     /* If we don't print all the water, we at least print the last one. */
     #if !PRINT_WATER
         for (int i = 0; i < in.N_WATER; i++) {
-            fprintf(wat_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
+            fprintf(wat_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
                 dyn_vars->t, i,
                 dyn_vars->watpos[3*i], dyn_vars->watpos[3*i+1], dyn_vars->watpos[3*i+2], 
                 dyn_vars->watvel[3*i], dyn_vars->watvel[3*i+1], dyn_vars->watvel[3*i+2],
-                dyn_vars->watacc[3*i], dyn_vars->watacc[3*i+1], dyn_vars->watacc[3*i+2]);
+                dyn_vars->watacc[3*i], dyn_vars->watacc[3*i+1], dyn_vars->watacc[3*i+2],
+                dyn_vars->watomg[3*i], dyn_vars->watomg[3*i+1], dyn_vars->watomg[3*i+2],
+                dyn_vars->watalp[3*i], dyn_vars->watalp[3*i+1], dyn_vars->watalp[3*i+2]);
         }
     #endif
 
@@ -409,8 +478,14 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
     for (int i = 0; i < 3*in.N_WATER; i++) {
         dyn_vars->watacc[i] = 0;
     }
+    for (int i = 0; i < 3*in.N_WATER; i++) {
+        dyn_vars->watalp[i] = 0;
+    }
     for (int i = 0; i < 3*in.N_PARTICLES; i++) {
         dyn_vars->partacc[i] = 0;
+    }
+    for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+        dyn_vars->partalp[i] = 0;
     }
 
     double pressure = 0.0;
@@ -423,6 +498,14 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
     double R_CC_sq = in.R_CC * in.R_CC;
     double R_SC_sq = in.R_SC * in.R_SC;
 
+    /* Moments of Inertia. TODO: Make this related to the mass/radius. */
+    double I_WATER = 0.3;
+    double I_PARTICLE = 289.15;
+
+    double lam_ss = 0.5;
+    double lam_cc = 0.5;
+    double lam_cs = in.R_CC / (in.R_CC + R_SS);
+    double lam_sc = R_SS / (in.R_CC + R_SS);
 
     /* -------------------------------------------------------------------- */
     /* 1. Water-Water interactions. */
@@ -459,7 +542,7 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
         }
 
         /* Rij stores the relative displacement vector. Points from j to i. */
-        double Rij[3];
+        double Rij[3] = {0.0, 0.0, 0.0};
         get_rel_vector(in, dyn_vars->t, dyn_vars->watpos, dyn_vars->watpos, i, j, Rij);
 
         /* Find the squared distance between particles. */
@@ -507,52 +590,113 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
                 printf("Mod Vij: %f\n", Vij[0] * Vij[0] + Vij[1] * Vij[1] + Vij[2] * Vij[2]);
             #endif  
 
+            /* Now computing the force, to be stored in the array, F. */
+            double F[3];
+
+            /* ---------------------------------------------------------------*/
+            /* ON-AXIS COMPONENT OF FORCE                                     */
+            /* ---------------------------------------------------------------*/
             /* Conservative Force. */
-            double F_c =  in.SPRING_CONST * dist_weight;
+            double F_on_con =  in.SPRING_CONST * dist_weight;
             /* Dissipative/Damping Force. */
-            double F_d = - in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
-            /* Random/Brownian Force.
-             * Variance of a uniform distribution is 1/12 * interval^2.
-             * Therefore, for mean = 0 and variance = 1, assume we have -x/2
-             * to x/2, then 1/12 * x^2 = 1 ==> x = sqrt(12) ~ 3.464. Note 
-             * that we first scale from 0 ~ RAND_MAX ==> 0 ~ 1 ==> 
-             * -1/2 ~ 1/2 ==> -sqrt(12)/2 ~ sqrt(12)/2.
-             */
-            double F_r = sigma * dist_weight * 3.464 * ((rand()/(double) RAND_MAX) - 0.5) / sqrt_dt;
+            double F_on_dam = -in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
+            /* Random/Brownian Force.  Argument is the variance. Random variance
+             * changes depending whether we have rotation. */
+            #if OFF_AXIS_FORCE_ON
+                double F_on_ran = sigma * dist_weight * random_num(2.0) / sqrt_dt;
+            #else
+                double F_on_ran = sigma * dist_weight * random_num(1.0) / sqrt_dt;
+            #endif
 
             #if VERBOSE
                 printf("Waters (%d, %d), F_c: %f, F_d: %f, F_r: %f\n", i, j, F_c, F_d, F_r);
             #endif
             
-            /* Total acceleration. There is no mass_water term because it is 
-             * taken to be exactly 1 by our definition of units.*/
-            double A = (F_c + F_d + F_r);
+            /* Total magnitude of on-axis force.*/
+            double F_on_axis = (F_on_con + F_on_dam + F_on_ran);
+
+            /* ---------------------------------------------------------------*/
+            /* OFF-AXIS COMPONENT OF FORCE                                    */
+            /* ---------------------------------------------------------------*/
+            double F_off_dam[3];
+            double off_dam_const = -in.DAMP_CONST * dist_weight * dist_weight;
+            F_off_dam[0] = off_dam_const * Vij[0];
+            F_off_dam[1] = off_dam_const * Vij[1];
+            F_off_dam[2] = off_dam_const * Vij[2];
+
+            double F_off_rot[3];
+            F_off_rot[0] = off_dam_const * lam_ss * (Rij[1] * (dyn_vars->watomg[3*i+2] + dyn_vars->watomg[3*j+2]) -
+                                                     Rij[2] * (dyn_vars->watomg[3*i+1] + dyn_vars->watomg[3*j+1]));
+            F_off_rot[1] = off_dam_const * lam_ss * (Rij[2] * (dyn_vars->watomg[3*i]   + dyn_vars->watomg[3*j]  ) -
+                                                     Rij[0] * (dyn_vars->watomg[3*i+2] + dyn_vars->watomg[3*j+2]));
+            F_off_rot[2] = off_dam_const * lam_ss * (Rij[0] * (dyn_vars->watomg[3*i+1] + dyn_vars->watomg[3*j+1]) -
+                                                     Rij[1] * (dyn_vars->watomg[3*i]   + dyn_vars->watomg[3*j]  ));
+
+            /* Need to generate 3 random numbers with mean 0 and variance 1.0
+             * for the asymmetric matrix. */
+            double alpha   = random_num(1);
+            double beta    = random_num(1);
+            double gamma   = -alpha;
+            double delta   = random_num(1);
+            double epsilon = -beta;
+            double zeta    = -delta;
+
+            double F_off_ran[3];
+            F_off_ran[0] = sigma * dist_weight / sqrt_dt * (alpha   * Rij_norm[1] + beta  * Rij_norm[2]);
+            F_off_ran[1] = sigma * dist_weight / sqrt_dt * (gamma   * Rij_norm[0] + delta * Rij_norm[2]);
+            F_off_ran[2] = sigma * dist_weight / sqrt_dt * (epsilon * Rij_norm[0] + zeta  * Rij_norm[1]); 
+
+            double F_off_axis[3];
+            F_off_axis[0] = F_off_dam[0] + F_off_rot[0] + F_off_ran[0];
+            F_off_axis[1] = F_off_dam[1] + F_off_rot[1] + F_off_ran[1];
+            F_off_axis[2] = F_off_dam[2] + F_off_rot[2] + F_off_ran[2];
+
+            /* ---------------------------------------------------------------*/
+            /* COMBINED FORCE                                                 */
+            /* ---------------------------------------------------------------*/
+
+            F[0] = F_on_axis * Rij_norm[0] + OFF_AXIS_FORCE_ON * F_off_axis[0];
+            F[1] = F_on_axis * Rij_norm[1] + OFF_AXIS_FORCE_ON * F_off_axis[1];
+            F[2] = F_on_axis * Rij_norm[2] + OFF_AXIS_FORCE_ON * F_off_axis[2];
 
             /* Component from shear that comes from F_a * Rij_b with a != b.
              * This is summed over all (i, j) pairs with j > i and where there 
              * is a force between these 2 particles. This is why we do this loop
              * here, since here is where all the water-water interaction pairs 
              * reside. We only do 1 term for i and not for j since we need that
-             * i < j. */
-            shear_xy[i] += A * Rij_norm[0] * Rij[1];
-            shear_xy[j] += A * Rij_norm[0] * Rij[1];
+             * i < j. We add the same term for both because F_ij and R_ij are 
+             * both reversed in sign when we reverse i and j. */
+            shear_xy[i] += F[0] * Rij[1];
+            shear_xy[j] += F[0] * Rij[1];
 
-            /* Pressure is sum of r_ij dot F_ij. Recall that F_ij = A * Rij_norm.
+            /* Pressure is sum of r_ij dot F_ij. 
              * Once again, this is summed across all (i, j) with j > i, and this
              * is exactly what this loop includes. */
-            pressure += A * (Rij_norm[0] * Rij[0] + 
-                             Rij_norm[1] * Rij[1] + 
-                             Rij_norm[2] * Rij[2]);
+            pressure += F[0] * Rij[0] + 
+                        F[1] * Rij[1] + 
+                        F[2] * Rij[2];
 
-            /* Force by j on water i. */
-            dyn_vars->watacc[3*i]   += A * Rij_norm[0];
-            dyn_vars->watacc[3*i+1] += A * Rij_norm[1];
-            dyn_vars->watacc[3*i+2] += A * Rij_norm[2];
+            /* Acceleration by water j on water i. Water has mass 1. */
+            dyn_vars->watacc[3*i]   += F[0] / M_WATER;
+            dyn_vars->watacc[3*i+1] += F[1] / M_WATER;
+            dyn_vars->watacc[3*i+2] += F[2] / M_WATER;
 
-            /* Reaction force by i on water j. */
-            dyn_vars->watacc[3*j]   -= A * Rij_norm[0];
-            dyn_vars->watacc[3*j+1] -= A * Rij_norm[1];
-            dyn_vars->watacc[3*j+2] -= A * Rij_norm[2];
+            /* Reaction acceleration by water i on water j. */
+            dyn_vars->watacc[3*j]   -= F[0] / M_WATER;
+            dyn_vars->watacc[3*j+1] -= F[1] / M_WATER;
+            dyn_vars->watacc[3*j+2] -= F[2] / M_WATER;
+
+            /* Angular acceleration by water j on water i. */
+            dyn_vars->watalp[3*i]   += -lam_ss * (Rij[1] * F[2] - Rij[2] * F[1]) / I_WATER;
+            dyn_vars->watalp[3*i+1] += -lam_ss * (Rij[2] * F[0] - Rij[0] * F[2]) / I_WATER;
+            dyn_vars->watalp[3*i+2] += -lam_ss * (Rij[0] * F[1] - Rij[1] * F[0]) / I_WATER;
+
+            /* Reaction angular acceleration by water i on water j. Note that  
+             * this is also "plus" because both Rij and F are reversed when we 
+             * switch i and j. */
+            dyn_vars->watalp[3*j]   += -lam_ss * (Rij[1] * F[2] - Rij[2] * F[1]) / I_WATER;
+            dyn_vars->watalp[3*j+1] += -lam_ss * (Rij[2] * F[0] - Rij[0] * F[2]) / I_WATER;
+            dyn_vars->watalp[3*j+2] += -lam_ss * (Rij[0] * F[1] - Rij[1] * F[0]) / I_WATER;
         }
     }
  
@@ -641,40 +785,99 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
                 printf("Mod Vij: %f\n", Vij[0] * Vij[0] + Vij[1] * Vij[1] + Vij[2] * Vij[2]);
             #endif  
 
+            /* Now computing the force, to be stored in the array, F. */
+            double F[3];
+
+            /* ---------------------------------------------------------------*/
+            /* ON-AXIS COMPONENT OF FORCE                                     */
+            /* ---------------------------------------------------------------*/
             /* Conservative Force. */
-            double F_c =  -12 * e_cc * pow(s_cc, 6) / pow(dist, 8) * (1 - pow(s_cc / dist, 6));
+            double F_on_con =  -12 * e_cc * pow(s_cc, 6) / pow(dist, 8) * (1 - pow(s_cc / dist, 6));
             /* Dissipative/Damping Force. */
-            double F_d = - in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
-            /* Random/Brownian Force. */
-            double F_r = sigma * dist_weight * 3.464 * ((rand()/(double) RAND_MAX) - 0.5) / sqrt_dt;
+            double F_on_dam = - in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
+            /* Random/Brownian Force.  Argument is the variance. Random variance
+             * changes depending whether we have rotation. */
+            #if OFF_AXIS_FORCE_ON
+                double F_on_ran = sigma * dist_weight * random_num(2.0) / sqrt_dt;
+            #else
+                double F_on_ran = sigma * dist_weight * random_num(1.0) / sqrt_dt;
+            #endif
 
             #if VERBOSE
                 printf("Particles (%d, %d), F_c: %f, F_d: %f, F_r: %f\n", i, j, F_c, F_d, F_r);
             #endif
             
-            /* Total acceleration = Total F / m. */
-            double A = (F_c + F_d + F_r) / in.M_PARTICLE;
+            /* Total magnitude of on-axis force.*/
+            double F_on_axis = (F_on_con + F_on_dam + F_on_ran);
+
+            /* ---------------------------------------------------------------*/
+            /* OFF-AXIS COMPONENT OF FORCE                                    */
+            /* ---------------------------------------------------------------*/
+            double F_off_dam[3];
+            double off_dam_const = -in.DAMP_CONST * dist_weight * dist_weight;
+            F_off_dam[0] = off_dam_const * Vij[0];
+            F_off_dam[1] = off_dam_const * Vij[1];
+            F_off_dam[2] = off_dam_const * Vij[2];
+
+            double F_off_rot[3];
+            F_off_rot[0] = off_dam_const * lam_cc * (Rij[1] * (dyn_vars->partomg[3*i+2] + dyn_vars->partomg[3*j+2]) -
+                                                     Rij[2] * (dyn_vars->partomg[3*i+1] + dyn_vars->partomg[3*j+1]));
+            F_off_rot[1] = off_dam_const * lam_cc * (Rij[2] * (dyn_vars->partomg[3*i]   + dyn_vars->partomg[3*j]  ) -
+                                                     Rij[0] * (dyn_vars->partomg[3*i+2] + dyn_vars->partomg[3*j+2]));
+            F_off_rot[2] = off_dam_const * lam_cc * (Rij[0] * (dyn_vars->partomg[3*i+1] + dyn_vars->partomg[3*j+1]) -
+                                                     Rij[1] * (dyn_vars->partomg[3*i]   + dyn_vars->partomg[3*j]  ));
+
+            double F_off_ran[3] = {0,0,0}; /* TODO */    
+
+            double F_off_axis[3];
+            F_off_axis[0] = F_off_dam[0] + F_off_rot[0] + F_off_ran[0];
+            F_off_axis[1] = F_off_dam[1] + F_off_rot[1] + F_off_ran[1];
+            F_off_axis[2] = F_off_dam[2] + F_off_rot[2] + F_off_ran[2];
+
+            /* ---------------------------------------------------------------*/
+            /* COMBINED FORCE                                                 */
+            /* ---------------------------------------------------------------*/
+
+            F[0] = F_on_axis * Rij_norm[0] + OFF_AXIS_FORCE_ON * F_off_axis[0];
+            F[1] = F_on_axis * Rij_norm[1] + OFF_AXIS_FORCE_ON * F_off_axis[1];
+            F[2] = F_on_axis * Rij_norm[2] + OFF_AXIS_FORCE_ON * F_off_axis[2];
 
             /* Component from shear that comes from F_a * Rij_b, with a != b. 
              * the shear is same for both because both F_ij and R_ij are 
-             * reversed when we switch i and j. */
-            shear_xy[in.N_WATER + i] += in.M_PARTICLE * A * Rij_norm[0] * Rij[1];
-            shear_xy[in.N_WATER + j] += in.M_PARTICLE * A * Rij_norm[0] * Rij[1];
+             * reversed when we switch i and j. Note that the index for the 
+             * particles are displaced by N_WATER since the particle shears are 
+             * placed after the waters. We add the same term for both because 
+             * F_ij and R_ij are both reversed in sign when we reverse i and j.
+             */
+            shear_xy[in.N_WATER + i] += F[0] * Rij[1];
+            shear_xy[in.N_WATER + j] += F[0] * Rij[1];
 
             /* Pressure is sum of r_ij dot F_ij. */
-            pressure += in.M_PARTICLE * A * (Rij_norm[0] * Rij[0] + 
-                                             Rij_norm[1] * Rij[1] + 
-                                             Rij_norm[2] * Rij[2]);
+            pressure += F[0] * Rij[0] + 
+                        F[1] * Rij[1] + 
+                        F[2] * Rij[2];
 
-            /* Force by j on particle i. */
-            dyn_vars->partacc[3*i]   += A * Rij_norm[0];
-            dyn_vars->partacc[3*i+1] += A * Rij_norm[1];
-            dyn_vars->partacc[3*i+2] += A * Rij_norm[2];
+            /* Acceleration by particle j on particle i. */
+            dyn_vars->partacc[3*i]   += F[0] / in.M_PARTICLE;
+            dyn_vars->partacc[3*i+1] += F[1] / in.M_PARTICLE;
+            dyn_vars->partacc[3*i+2] += F[2] / in.M_PARTICLE;
 
-            /* Reaction force by i on particle j. */
-            dyn_vars->partacc[3*j]   -= A * Rij_norm[0];
-            dyn_vars->partacc[3*j+1] -= A * Rij_norm[1];
-            dyn_vars->partacc[3*j+2] -= A * Rij_norm[2];
+            /* Reaction acceleration by particle i on particle j. */
+            dyn_vars->partacc[3*j]   -= F[0] / in.M_PARTICLE;
+            dyn_vars->partacc[3*j+1] -= F[1] / in.M_PARTICLE;
+            dyn_vars->partacc[3*j+2] -= F[2] / in.M_PARTICLE;
+
+            /* Angular acceleration by particle j on particle i. */
+            dyn_vars->partalp[3*i]   += -lam_cc * (Rij[1] * F[2] - Rij[2] * F[1]) / I_PARTICLE;
+            dyn_vars->partalp[3*i+1] += -lam_cc * (Rij[2] * F[0] - Rij[0] * F[2]) / I_PARTICLE;
+            dyn_vars->partalp[3*i+2] += -lam_cc * (Rij[0] * F[1] - Rij[1] * F[0]) / I_PARTICLE;
+
+            /* Reaction angular acceleration by particle i on particle j. Note 
+             * that this is also "plus" because both Rij and F are reversed when 
+             * we switch i and j. */
+            dyn_vars->partalp[3*j]   += -lam_cc * (Rij[1] * F[2] - Rij[2] * F[1]) / I_PARTICLE;
+            dyn_vars->partalp[3*j+1] += -lam_cc * (Rij[2] * F[0] - Rij[0] * F[2]) / I_PARTICLE;
+            dyn_vars->partalp[3*j+2] += -lam_cc * (Rij[0] * F[1] - Rij[1] * F[0]) / I_PARTICLE;
         }
     }
 
@@ -763,42 +966,101 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
                 printf("Mod Vij: %f\n", Vij[0] * Vij[0] + Vij[1] * Vij[1] + Vij[2] * Vij[2]);
             #endif  
 
+            /* Now computing the force, to be stored in the array, F. */
+            double F[3];
+
+            /* ---------------------------------------------------------------*/
+            /* ON-AXIS COMPONENT OF FORCE                                     */
+            /* ---------------------------------------------------------------*/
             /* Conservative Force. */
-            double F_c =  -12 * e_sc * pow(s_sc, 6) / pow(dist, 8) * (1 - pow(s_sc / dist, 6));
+            double F_on_con =  -12 * e_sc * pow(s_sc, 6) / pow(dist, 8) * (1 - pow(s_sc / dist, 6));
             /* Dissipative/Damping Force. */
-            double F_d = - in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
-            /* Random/Brownian Force. */
-            double F_r = sigma * dist_weight * 3.464 * ((rand()/(double) RAND_MAX) - 0.5) / sqrt_dt;
+            double F_on_dam = - in.DAMP_CONST * dist_weight * dist_weight * V_dot_R;
+            /* Random/Brownian Force.  Argument is the variance. Random variance
+             * changes depending whether we have rotation. */
+            #if OFF_AXIS_FORCE_ON
+                double F_on_ran = sigma * dist_weight * random_num(2.0) / sqrt_dt;
+            #else
+                double F_on_ran = sigma * dist_weight * random_num(1.0) / sqrt_dt;
+            #endif
 
             #if VERBOSE
                 printf("Particles (%d, %d), F_c: %f, F_d: %f, F_r: %f\n", i, j, F_c, F_d, F_r);
             #endif
             
-            /* Total acceleration = Total F / m. A_w reflects the actual force. */
-            double A_w = (F_c + F_d + F_r);
-            double A_p = A_w / in.M_PARTICLE;
+            /* Total magnitude of on-axis force.*/
+            double F_on_axis = (F_on_con + F_on_dam + F_on_ran);
+
+            /* ---------------------------------------------------------------*/
+            /* OFF-AXIS COMPONENT OF FORCE                                    */
+            /* ---------------------------------------------------------------*/
+            double F_off_dam[3];
+            double off_dam_const = -in.DAMP_CONST * dist_weight * dist_weight;
+            F_off_dam[0] = off_dam_const * Vij[0];
+            F_off_dam[1] = off_dam_const * Vij[1];
+            F_off_dam[2] = off_dam_const * Vij[2];
+
+            double F_off_rot[3];
+            F_off_rot[0] = off_dam_const * (Rij[1] * (lam_cs * dyn_vars->partomg[3*i+2] + lam_sc * dyn_vars->watomg[3*j+2]) -
+                                            Rij[2] * (lam_cs * dyn_vars->partomg[3*i+1] + lam_sc * dyn_vars->watomg[3*j+1]));
+            F_off_rot[1] = off_dam_const * (Rij[2] * (lam_cs * dyn_vars->partomg[3*i]   + lam_sc * dyn_vars->watomg[3*j]) -
+                                            Rij[0] * (lam_cs * dyn_vars->partomg[3*i+2] + lam_sc * dyn_vars->watomg[3*j+2]));
+            F_off_rot[2] = off_dam_const * (Rij[0] * (lam_cs * dyn_vars->partomg[3*i+1] + lam_sc * dyn_vars->watomg[3*j+1]) -
+                                            Rij[1] * (lam_cs * dyn_vars->partomg[3*i]   + lam_sc * dyn_vars->watomg[3*j]));
+
+            double F_off_ran[3] = {0,0,0}; /* TODO */    
+
+            double F_off_axis[3];
+            F_off_axis[0] = F_off_dam[0] + F_off_rot[0] + F_off_ran[0];
+            F_off_axis[1] = F_off_dam[1] + F_off_rot[1] + F_off_ran[1];
+            F_off_axis[2] = F_off_dam[2] + F_off_rot[2] + F_off_ran[2];
+
+            /* ---------------------------------------------------------------*/
+            /* COMBINED FORCE                                                 */
+            /* ---------------------------------------------------------------*/
+
+            F[0] = F_on_axis * Rij_norm[0] + OFF_AXIS_FORCE_ON * F_off_axis[0];
+            F[1] = F_on_axis * Rij_norm[1] + OFF_AXIS_FORCE_ON * F_off_axis[1];
+            F[2] = F_on_axis * Rij_norm[2] + OFF_AXIS_FORCE_ON * F_off_axis[2];
 
             /* Component from shear that comes from F_a * Rij_b with a != b. 
              * Here we use the force on the particle to calculate as the Rij 
              * vector is  calculated using i for the particle and j for the 
-             * water. */
-            shear_xy[in.N_WATER + i] += in.M_PARTICLE * A_p * Rij_norm[0] * Rij[1];
-            shear_xy[j] += A_w * Rij_norm[0] * Rij[1];
+             * water. Note that the index for the particle (i) is displaced by
+             * N_WATER since the particle shears are placed after the waters. 
+             * We add the same term for both because F_ij and R_ij are both
+             * reversed in sign when we reverse i and j. */
+            shear_xy[in.N_WATER + i] += F[0] * Rij[1];
+            shear_xy[j] += F[0] * Rij[1];
 
             /* Pressure is sum of r_ij dot F_ij. */
-            pressure += in.M_PARTICLE * A_p * (Rij_norm[0] * Rij[0] + 
-                                               Rij_norm[1] * Rij[1] + 
-                                               Rij_norm[2] * Rij[2]);
+            pressure += F[0] * Rij[0] + 
+                        F[1] * Rij[1] + 
+                        F[2] * Rij[2];
 
-            /* Force by water j on particle i. */
-            dyn_vars->partacc[3*i]   += A_p * Rij_norm[0];
-            dyn_vars->partacc[3*i+1] += A_p * Rij_norm[1];
-            dyn_vars->partacc[3*i+2] += A_p * Rij_norm[2];
+            /* Acceleration by water j on particle i. */
+            dyn_vars->partacc[3*i]   += F[0] / in.M_PARTICLE;
+            dyn_vars->partacc[3*i+1] += F[1] / in.M_PARTICLE;
+            dyn_vars->partacc[3*i+2] += F[2] / in.M_PARTICLE;
 
-            /* Reaction force by particle i on water j. */
-            dyn_vars->watacc[3*j]   -= A_w * Rij_norm[0];
-            dyn_vars->watacc[3*j+1] -= A_w * Rij_norm[1];
-            dyn_vars->watacc[3*j+2] -= A_w * Rij_norm[2];
+            /* Reaction acceleration by particle i on water j. */
+            dyn_vars->watacc[3*j]   -= F[0] / M_WATER;
+            dyn_vars->watacc[3*j+1] -= F[1] / M_WATER;
+            dyn_vars->watacc[3*j+2] -= F[2] / M_WATER;
+
+            /* Angular acceleration by water j on particle i. */
+            dyn_vars->partalp[3*i]   += -lam_cs * (Rij[1] * F[2] - Rij[2] * F[1]) / I_PARTICLE;
+            dyn_vars->partalp[3*i+1] += -lam_cs * (Rij[2] * F[0] - Rij[0] * F[2]) / I_PARTICLE;
+            dyn_vars->partalp[3*i+2] += -lam_cs * (Rij[0] * F[1] - Rij[1] * F[0]) / I_PARTICLE;
+            
+            /* Reaction angular acceleration by particle i on water j. Note that 
+             * this is also "plus" because both Rij and F are reversed when we 
+             * switch i and j. Also note that we use sc here instead of cs above  
+             * since we are acting on the water (s) while we are acting on the 
+             * particle (c) above. */
+            dyn_vars->watalp[3*j]   += -lam_sc * (Rij[1] * F[2] - Rij[2] * F[1]) / I_WATER;
+            dyn_vars->watalp[3*j+1] += -lam_sc * (Rij[2] * F[0] - Rij[0] * F[2]) / I_WATER;
+            dyn_vars->watalp[3*j+2] += -lam_sc * (Rij[0] * F[1] - Rij[1] * F[0]) / I_WATER;
         }
     }
 
@@ -845,6 +1107,7 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
 
     pressure /= (3.0 * box_vol); 
     pressure += (in.N_WATER / box_vol);
+    /* TODO: Do we need pressure from rho contribution by particles. */
 
     return pressure;
 }
@@ -1071,6 +1334,32 @@ double calc_temp(Dyn_Vars *dyn_vars, Inputs in) {
     return temp;
 }
 
+/* Calculates temperature by using E = 3/2 NkT = sum(1/2 * I * omega^2). */
+double calc_temp_rot(Dyn_Vars *dyn_vars, Inputs in) {
+
+    double KE_rot = 0;
+    /* Moments of Inertia. TODO: Make this related to the mass/radius. */
+    double I_WATER = 0.3;
+
+    /* Sum the Rot KE from all particles.]
+     */
+    for (int i = 0; i < in.N_WATER; i++) {
+
+        int x = 3 * i;
+        int y = x + 1;
+        int z = y + 1;
+
+        KE_rot += 0.5 * I_WATER *
+                (dyn_vars->watomg[x] * dyn_vars->watomg[x] + 
+                 dyn_vars->watomg[y] * dyn_vars->watomg[y] +
+                 dyn_vars->watomg[z] * dyn_vars->watomg[z]);
+    }
+
+    double temp = KE_rot / (3.0/2.0 * in.N_WATER); /* E ~ 3/2 NkT */
+
+    return temp;
+}
+
 /* Reads from the file that has the list of xy shears for every particle at 
  * every time, and computes the Green-Kubo integral to obtain the viscosity.
  */
@@ -1078,7 +1367,9 @@ void calc_viscosity(Inputs in) {
 
     FILE *shear_data = fopen("shear.out", "r");
 
-    /* Array of double array pointers. */
+    /* Array of double array pointers. Need to use malloc because there is 
+     * insufficient space on the stack for a statically defined array; so we
+     * use the heap instead. */
     double **shear_array = malloc((in.N_WATER + in.N_PARTICLES) * sizeof(double *));
     if (shear_array == NULL) {
         fprintf(stderr, "Error in allocating memory.\n");

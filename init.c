@@ -45,19 +45,20 @@ Dyn_Vars *initialise(Inputs in) {
     dyn_vars->watvel  = (double *) calloc(3 * in.N_WATER,     sizeof(double));
     dyn_vars->watacc  = (double *) calloc(3 * in.N_WATER,     sizeof(double));
     dyn_vars->watomg  = (double *) calloc(3 * in.N_WATER,     sizeof(double));
-    dyn_vars->wattoq  = (double *) calloc(3 * in.N_WATER,     sizeof(double));
+    dyn_vars->watalp  = (double *) calloc(3 * in.N_WATER,     sizeof(double));
 
     dyn_vars->partpos = (double *) calloc(3 * in.N_PARTICLES, sizeof(double));
     dyn_vars->partvel = (double *) calloc(3 * in.N_PARTICLES, sizeof(double));
     dyn_vars->partacc = (double *) calloc(3 * in.N_PARTICLES, sizeof(double));
     dyn_vars->partomg = (double *) calloc(3 * in.N_PARTICLES, sizeof(double));
-    dyn_vars->parttoq = (double *) calloc(3 * in.N_PARTICLES, sizeof(double));
+    dyn_vars->partalp = (double *) calloc(3 * in.N_PARTICLES, sizeof(double));
 
-    if (dyn_vars->watpos == NULL || dyn_vars->watvel == NULL || 
-        dyn_vars->watacc == NULL || dyn_vars->watomg == NULL || 
-        dyn_vars->wattoq == NULL || dyn_vars->partpos == NULL || 
-        dyn_vars->partvel == NULL || dyn_vars->partacc == NULL || 
-        dyn_vars->partomg == NULL || dyn_vars->parttoq == NULL) {
+    if (dyn_vars->watpos  == NULL || dyn_vars->watvel  == NULL || 
+        dyn_vars->watacc  == NULL || dyn_vars->watomg  == NULL || 
+        dyn_vars->watalp  == NULL ||
+        dyn_vars->partpos == NULL || dyn_vars->partvel == NULL || 
+        dyn_vars->partacc == NULL || dyn_vars->partomg == NULL || 
+        dyn_vars->partalp == NULL) {
         fprintf(stderr, "Error in memory allocation!\n");
         exit(1);
     }
