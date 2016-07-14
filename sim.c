@@ -827,7 +827,19 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
             F_off_rot[2] = off_dam_const * lam_cc * (Rij[0] * (dyn_vars->partomg[3*i+1] + dyn_vars->partomg[3*j+1]) -
                                                      Rij[1] * (dyn_vars->partomg[3*i]   + dyn_vars->partomg[3*j]  ));
 
-            double F_off_ran[3] = {0,0,0}; /* TODO */    
+            /* Need to generate 3 random numbers with mean 0 and variance 1.0
+             * for the asymmetric matrix. */
+            double alpha   = random_num(1);
+            double beta    = random_num(1);
+            double gamma   = -alpha;
+            double delta   = random_num(1);
+            double epsilon = -beta;
+            double zeta    = -delta;
+
+            double F_off_ran[3];
+            F_off_ran[0] = sigma * dist_weight / sqrt_dt * (alpha   * Rij_norm[1] + beta  * Rij_norm[2]);
+            F_off_ran[1] = sigma * dist_weight / sqrt_dt * (gamma   * Rij_norm[0] + delta * Rij_norm[2]);
+            F_off_ran[2] = sigma * dist_weight / sqrt_dt * (epsilon * Rij_norm[0] + zeta  * Rij_norm[1]); 
 
             double F_off_axis[3];
             F_off_axis[0] = F_off_dam[0] + F_off_rot[0] + F_off_ran[0];
@@ -1008,7 +1020,19 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
             F_off_rot[2] = off_dam_const * (Rij[0] * (lam_cs * dyn_vars->partomg[3*i+1] + lam_sc * dyn_vars->watomg[3*j+1]) -
                                             Rij[1] * (lam_cs * dyn_vars->partomg[3*i]   + lam_sc * dyn_vars->watomg[3*j]));
 
-            double F_off_ran[3] = {0,0,0}; /* TODO */    
+            /* Need to generate 3 random numbers with mean 0 and variance 1.0
+             * for the asymmetric matrix. */
+            double alpha   = random_num(1);
+            double beta    = random_num(1);
+            double gamma   = -alpha;
+            double delta   = random_num(1);
+            double epsilon = -beta;
+            double zeta    = -delta;
+
+            double F_off_ran[3];
+            F_off_ran[0] = sigma * dist_weight / sqrt_dt * (alpha   * Rij_norm[1] + beta  * Rij_norm[2]);
+            F_off_ran[1] = sigma * dist_weight / sqrt_dt * (gamma   * Rij_norm[0] + delta * Rij_norm[2]);
+            F_off_ran[2] = sigma * dist_weight / sqrt_dt * (epsilon * Rij_norm[0] + zeta  * Rij_norm[1]);  
 
             double F_off_axis[3];
             F_off_axis[0] = F_off_dam[0] + F_off_rot[0] + F_off_ran[0];
