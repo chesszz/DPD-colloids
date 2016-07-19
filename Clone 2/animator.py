@@ -21,7 +21,7 @@ PLOT_CROSSFLOW  = False # Plot the x-velocity distribution of water against y-po
 PLOT_VISC       = False # Plot the viscosity-time curve. Deprecated for now due to implementation in C.
 PLOT_SQ_DISP_W  = False # Plot the squared-displacement of water. Doesn't really work for shears due to x-jumps.
 PLOT_SQ_DISP_P  = False  # Plot the squared-displacement of particles. Doesn't really work for shears due to x-jumps.
-PLOT_PRESSURE   = False  # Plot the pressure-time curve
+PLOT_PRESSURE   = True  # Plot the pressure-time curve
 
 NUM_INPUTS      = 15    # How many inputs there are to be read from inputs.in
 

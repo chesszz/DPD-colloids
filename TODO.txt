@@ -1,13 +1,16 @@
 Todo:
 ------
-- Check calculation for viscosity
-    - Green-Kubo (indiv. particles version)
+- Does viscosity diverge? -- Explore viscosity with even more particles
+- Effects of integration time
+- Effects of changing hardness of particles
+- Try to keep pressure constant -- effects of number of water present
 
 
 Future Investigations:
 ----------------------
     - Packing/Jamming state -- phi very near phi_max -- Flowability of water at such scales
     - Nonhomogeneous particle sizes -- Similar to how the supercooled water has varying sizes of "solid" water
+    - Shear-type viscosity measurements....
 
 Reference:
 ----------

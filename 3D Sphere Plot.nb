@@ -1,0 +1,378 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 10.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     15481,        370]
+NotebookOptionsPosition[     14820,        344]
+NotebookOutlinePosition[     15194,        360]
+CellTagsIndexPosition[     15151,        357]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"SetDirectory", "[", 
+   RowBox[{"NotebookDirectory", "[", "]"}], "]"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"data", " ", "=", " ", 
+   RowBox[{"SetPrecision", "[", 
+    RowBox[{
+     RowBox[{"Import", "[", "\"\<particles.out\>\"", "]"}], ",", "8"}], 
+    "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"inputs", " ", "=", " ", 
+    RowBox[{"Import", "[", 
+     RowBox[{"\"\<inputs.in\>\"", ",", " ", "\"\<Table\>\""}], "]"}]}], ";"}],
+   "\[IndentingNewLine]", "\[IndentingNewLine]", 
+  RowBox[{"(*", " ", "Diameter", " ", "*)"}]}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"d", "=", " ", 
+   RowBox[{
+    RowBox[{"inputs", "\[LeftDoubleBracket]", "11", "\[RightDoubleBracket]"}],
+     "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"r", "=", 
+   RowBox[{"d", "/", "2"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"numPart", " ", "=", " ", 
+    RowBox[{
+     RowBox[{"inputs", "\[LeftDoubleBracket]", "2", "\[RightDoubleBracket]"}],
+      "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}]}], ";"}], 
+  "\[IndentingNewLine]", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+  RowBox[{"(*", 
+   RowBox[{
+   "Centre", " ", "positions", " ", "are", " ", "stored", " ", "from", " ", 
+    "the", " ", "2", "nd", " ", "row", " ", "onwards"}], "*)"}], 
+  "\[IndentingNewLine]", "\[IndentingNewLine]", 
+  RowBox[{"(*", 
+   RowBox[{
+   "Create", " ", "a", " ", "table", " ", "with", " ", "the", " ", 
+    "\"\<Sphere\>\"", " ", "graphics", " ", "objects"}], 
+   "*)"}]}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"graphicsset", " ", "=", 
+    RowBox[{"Table", "[", "\[IndentingNewLine]", 
+     RowBox[{
+      RowBox[{"Sphere", "[", 
+       RowBox[{
+        RowBox[{
+         RowBox[{
+         "data", "\[LeftDoubleBracket]", "i", "\[RightDoubleBracket]"}], 
+         "\[LeftDoubleBracket]", 
+         RowBox[{"3", ";;", "5"}], "\[RightDoubleBracket]"}], ",", "r"}], 
+       "]"}], ",", "\[IndentingNewLine]", 
+      RowBox[{"{", 
+       RowBox[{"i", ",", "2", ",", 
+        RowBox[{"2", "+", "numPart", "-", "1"}]}], "}"}]}], 
+     "\[IndentingNewLine]", "]"}]}], ";"}], "\[IndentingNewLine]", 
+  RowBox[{"(*", 
+   RowBox[{
+   "Find", " ", "the", " ", "dimensions", " ", "of", " ", "the", " ", 
+    "enclosing", " ", "box"}], "*)"}]}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"{", 
+    RowBox[{"xmin", ",", "ymin", ",", "zmin"}], "}"}], "=", 
+   RowBox[{"{", 
+    RowBox[{"0", ",", "0", ",", "0"}], "}"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"{", 
+    RowBox[{"xmax", ",", "ymax", ",", "zmax"}], "}"}], "=", 
+   RowBox[{"{", 
+    RowBox[{"15", ",", "15", ",", "15"}], "}"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"volume", " ", "=", " ", 
+   SuperscriptBox["15", "3"]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"occupied", " ", "=", " ", 
+    RowBox[{"numPart", " ", "*", " ", 
+     RowBox[{"4", "/", "3"}], "*", "\[Pi]", "*", 
+     SuperscriptBox["r", "3"]}]}], ";"}], 
+  "\[IndentingNewLine]"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"packfraction", " ", "=", " ", 
+   RowBox[{"N", "[", 
+    RowBox[{"occupied", "/", "volume"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{"Print", "[", 
+  RowBox[{
+  "\"\<We have \>\"", ",", " ", "numPart", ",", "\"\< particles.\>\""}], 
+  "]"}], "\[IndentingNewLine]"}], "Input",
+ CellChangeTimes->{{3.6366147630039*^9, 3.6366147658771176`*^9}, {
+   3.6366155878245006`*^9, 3.636615597289174*^9}, {3.636615830267187*^9, 
+   3.6366158331223974`*^9}, {3.636616272195177*^9, 3.63661627976368*^9}, {
+   3.6366882739916697`*^9, 3.636688312884222*^9}, {3.6366883522456455`*^9, 
+   3.636688361402244*^9}, {3.6366883962634335`*^9, 3.6366884124672513`*^9}, {
+   3.636688514267825*^9, 3.6366885928967185`*^9}, {3.636688828575923*^9, 
+   3.6366888343263283`*^9}, {3.6366895328746614`*^9, 
+   3.6366895481254125`*^9}, {3.6366898055755377`*^9, 
+   3.6366898285923157`*^9}, {3.636689962364496*^9, 3.636689998319508*^9}, 
+   3.636690574457945*^9, {3.636690682093673*^9, 3.636690767361043*^9}, {
+   3.636690802448538*^9, 3.636690806255895*^9}, {3.6366924656694784`*^9, 
+   3.6366924709239545`*^9}, 3.6366950453416033`*^9, {3.6367205986859818`*^9, 
+   3.636720598857848*^9}, {3.6367211067813168`*^9, 3.6367211303224716`*^9}, 
+   3.636721163338255*^9, {3.677561833794881*^9, 3.6775620158384404`*^9}, {
+   3.6775620519057627`*^9, 3.6775621138201604`*^9}, {3.6775621463871717`*^9, 
+   3.6775622503553553`*^9}, {3.677562286894452*^9, 3.6775623178567057`*^9}, {
+   3.6775623503785353`*^9, 3.677562386145131*^9}, {3.6775624177070956`*^9, 
+   3.677562418394559*^9}, {3.6775624580646987`*^9, 3.677562482241126*^9}, {
+   3.6775625737560253`*^9, 3.6775625954238267`*^9}}],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"We have \"\>", "\[InvisibleSpace]", "50", 
+   "\[InvisibleSpace]", "\<\" particles.\"\>"}],
+  SequenceForm["We have ", 50, " particles."],
+  Editable->False]], "Print",
+ CellChangeTimes->{{3.677562597174038*^9, 3.6775626140667505`*^9}}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(*", " ", 
+   RowBox[{"For", " ", "3", "D", " ", 
+    RowBox[{"packing", "!"}]}], " ", "*)"}], "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{"Graphics3D", "[", "graphicsset", "]"}], "\[IndentingNewLine]", 
+   RowBox[{"Print", "[", 
+    RowBox[{"\"\<The packing fraction is \>\"", ",", "packfraction"}], 
+    "]"}]}]}]], "Input",
+ CellChangeTimes->{{3.636614467507577*^9, 3.636614470782261*^9}, {
+  3.6366157104013743`*^9, 3.6366157105455437`*^9}, {3.6366158395225954`*^9, 
+  3.636615839702798*^9}, {3.6366162885035024`*^9, 3.636616292995556*^9}, {
+  3.6367218150933447`*^9, 3.6367218470113993`*^9}}],
+
+Cell[BoxData[
+ Graphics3DBox[{SphereBox[{8.54787, 13.333736, 11.11581}, 2.5], 
+   SphereBox[{14.710842, 9.203624, 5.494575}, 2.5], 
+   SphereBox[{2.404416, 11.544209, 12.303246}, 2.5], 
+   SphereBox[{11.327652, 11.023967, 12.859071}, 2.5], 
+   SphereBox[{8.590963, 8.250125, 9.906786}, 2.5], 
+   SphereBox[{8.562022, 10.732599, 1.70169}, 2.5], 
+   SphereBox[{10.633664, 12.884601, 7.75896}, 2.5], 
+   SphereBox[{7.360883, 14.958781, 2.525474}, 2.5], 
+   SphereBox[{1.372754, 0.129127, 12.319137}, 2.5], 
+   SphereBox[{9.573994, 1.439616, 4.438478}, 2.5], 
+   SphereBox[{0.067406, 14.493372, 0.940981}, 2.5], 
+   SphereBox[{9.523373, 3.721535, 1.184096}, 2.5], 
+   SphereBox[{0.245308, 8.269951, 11.601189}, 2.5], 
+   SphereBox[{0.940889, 8.435762, 1.083995}, 2.5], 
+   SphereBox[{11.961295, 6.956353, 3.025736}, 2.5], 
+   SphereBox[{4.996677, 10.632304, 14.910654}, 2.5], 
+   SphereBox[{4.768083, 5.906194, 9.186974}, 2.5], 
+   SphereBox[{10.529569, 7.327136, 14.630207}, 2.5], 
+   SphereBox[{14.107046, 5.520734, 6.119364}, 2.5], 
+   SphereBox[{11.589983, 1.181137, 8.95396}, 2.5], 
+   SphereBox[{4.921717, 1.767738, 13.481966}, 2.5], 
+   SphereBox[{1.880525, 2.613029, 1.064278}, 2.5], 
+   SphereBox[{0.452325, 4.415289, 9.465863}, 2.5], 
+   SphereBox[{2.924204, 7.486111, 6.114448}, 2.5], 
+   SphereBox[{12.618244, 1.651936, 13.158379}, 2.5], 
+   SphereBox[{6.61638, 4.100762, 3.425054}, 2.5], 
+   SphereBox[{8.385336, 2.317118, 11.644941}, 2.5], 
+   SphereBox[{11.225341, 12.39245, 3.722486}, 2.5], 
+   SphereBox[{13.365028, 2.485503, 3.378929}, 2.5], 
+   SphereBox[{4.415805, 14.175789, 10.179361}, 2.5], 
+   SphereBox[{5.417593, 5.398836, 14.974333}, 2.5], 
+   SphereBox[{2.428168, 12.789011, 7.430299}, 2.5], 
+   SphereBox[{5.00225, 11.568341, 4.045306}, 2.5], 
+   SphereBox[{0.213517, 12.795811, 4.295788}, 2.5], 
+   SphereBox[{1.518141, 1.074641, 8.594438}, 2.5], 
+   SphereBox[{3.323853, 5.792141, 2.701753}, 2.5], 
+   SphereBox[{12.389109, 8.072198, 8.226852}, 2.5], 
+   SphereBox[{5.323535, 8.449667, 12.274743}, 2.5], 
+   SphereBox[{2.694688, 4.816401, 12.254759}, 2.5], 
+   SphereBox[{6.179154, 7.749475, 3.805128}, 2.5], 
+   SphereBox[{13.606608, 5.417615, 14.438031}, 2.5], 
+   SphereBox[{10.778501, 5.853773, 11.164185}, 2.5], 
+   SphereBox[{8.769391, 10.126212, 6.379603}, 2.5], 
+   SphereBox[{5.193318, 10.219551, 7.935224}, 2.5], 
+   SphereBox[{13.829728, 11.766798, 9.502485}, 2.5], 
+   SphereBox[{7.420041, 1.746529, 7.528117}, 2.5], 
+   SphereBox[{13.271441, 10.775046, 0.877636}, 2.5], 
+   SphereBox[{8.345919, 5.717289, 7.641704}, 2.5], 
+   SphereBox[{3.902995, 13.941495, 1.659196}, 2.5], 
+   SphereBox[{10.117356, 14.276906, 0.004118}, 2.5]},
+  ImageSize->{423.5523368017954, 480.},
+  ViewPoint->{-0.3003819342455235, 0.5582221135493173, -3.3238770683530836`},
+  ViewVertical->{-0.8531141347108682, -0.004546831133787, \
+-0.543874602522767}]], "Output",
+ CellChangeTimes->{
+  3.6366144532885857`*^9, {3.6366157728495855`*^9, 3.6366158399710855`*^9}, 
+   3.6366158895918903`*^9, {3.636616289468603*^9, 3.6366162935251646`*^9}, 
+   3.6366169154267864`*^9, 3.6366879190725684`*^9, 3.6366880652194104`*^9, 
+   3.6366881810808554`*^9, 3.636688423436513*^9, 3.6366900341999583`*^9, 
+   3.636690452242029*^9, {3.6366904998190155`*^9, 3.6366905601759744`*^9}, 
+   3.6366906063205357`*^9, 3.6366906369513254`*^9, 3.636690898952627*^9, 
+   3.636692368579741*^9, 3.636720620421115*^9, 3.6367207763944497`*^9, {
+   3.6367218426860046`*^9, 3.636721847276906*^9}, 3.6367218843929896`*^9, 
+   3.636721950114592*^9, 3.6367232635422544`*^9, 3.636723357034446*^9, 
+   3.6367868592013845`*^9, 3.636787166960721*^9, 3.6367875373138714`*^9, 
+   3.6367879172438073`*^9, 3.6367879813851633`*^9, 3.6775620274963923`*^9, {
+   3.6775620598284245`*^9, 3.677562071298746*^9}, {3.6775624847725945`*^9, 
+   3.6775625324407473`*^9}, 3.6775625674718404`*^9, {3.6775625989710007`*^9, 
+   3.677562614160505*^9}}],
+
+Cell[BoxData[
+ InterpretationBox[
+  RowBox[{"\<\"The packing fraction is \"\>", "\[InvisibleSpace]", 
+   "0.969627362219072`"}],
+  SequenceForm["The packing fraction is ", 0.969627362219072],
+  Editable->False]], "Print",
+ CellChangeTimes->{{3.6367218426860046`*^9, 3.636721847276906*^9}, 
+   3.63672188443987*^9, 3.6367219501614733`*^9, 3.6367232635422544`*^9, 
+   3.6367233570454583`*^9, 3.6367868592013845`*^9, 3.636787166960721*^9, 
+   3.636787537320878*^9, 3.6367879172438073`*^9, 3.6367879813851633`*^9, 
+   3.6775620274963923`*^9, {3.6775620598284245`*^9, 3.677562071298746*^9}, {
+   3.6775624847725945`*^9, 3.6775625324407473`*^9}, 3.6775625674718404`*^9, {
+   3.6775625989710007`*^9, 3.677562614176114*^9}}]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{"(*", 
+  RowBox[{
+   RowBox[{"DistTable", " ", "=", " ", 
+    RowBox[{"ParallelTable", "[", "\[IndentingNewLine]", 
+     RowBox[{
+      RowBox[{"Norm", "[", 
+       RowBox[{
+        RowBox[{"data", "[", 
+         RowBox[{"[", "i", "]"}], "]"}], "-", 
+        RowBox[{"data", "[", 
+         RowBox[{"[", "j", "]"}], "]"}]}], "]"}], ",", "\[IndentingNewLine]", 
+      RowBox[{"{", 
+       RowBox[{"i", ",", "7", ",", 
+        RowBox[{"Length", "[", "data", "]"}]}], "}"}], ",", 
+      "\[IndentingNewLine]", 
+      RowBox[{"{", 
+       RowBox[{"j", ",", "7", ",", 
+        RowBox[{"Length", "[", "data", "]"}]}], "}"}]}], 
+     "\[IndentingNewLine]", "]"}]}], ";"}], "*)"}]], "Input",
+ CellChangeTimes->{3.6367219536198287`*^9, 3.677562558950529*^9}],
+
+Cell[BoxData[
+ RowBox[{"(*", 
+  RowBox[{
+   RowBox[{"TouchingSpheres", "=", 
+    RowBox[{
+     RowBox[{"(", 
+      RowBox[{
+       RowBox[{"Count", "[", 
+        RowBox[{"DistanceBtwCentres_", "/;", 
+         RowBox[{"DistanceBtwCentres", "<", 
+          RowBox[{"1.001", "*", "d"}]}]}], "]"}], "/@", "DistTable"}], ")"}], 
+     "-", "1"}]}], ";", "\[IndentingNewLine]", 
+   RowBox[{"N", "[", 
+    RowBox[{"Mean", "[", "TouchingSpheres", "]"}], "]"}]}], "*)"}]], "Input",
+ CellChangeTimes->{{3.636787931407918*^9, 3.6367879689688168`*^9}, {
+   3.6367880125444403`*^9, 3.636788021254589*^9}, 3.6775625613102036`*^9}],
+
+Cell[BoxData[
+ RowBox[{"(*", 
+  RowBox[{"meancoord", " ", "=", " ", 
+   RowBox[{"Table", "[", "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"TouchingSpheres", "=", 
+       RowBox[{
+        RowBox[{"(", 
+         RowBox[{
+          RowBox[{"Count", "[", 
+           RowBox[{"DistanceBtwCentres_", "/;", 
+            RowBox[{"DistanceBtwCentres", "<", 
+             RowBox[{"limit", "*", "d"}]}]}], "]"}], "/@", "DistTable"}], 
+         ")"}], "-", "1"}]}], ";", "\[IndentingNewLine]", 
+      RowBox[{"N", "[", 
+       RowBox[{"Mean", "[", "TouchingSpheres", "]"}], "]"}]}], ",", 
+     "\[IndentingNewLine]", 
+     RowBox[{"{", 
+      RowBox[{"limit", ",", 
+       RowBox[{"{", 
+        RowBox[{
+        "1.000001", ",", "1.0001", ",", "1.001", ",", "1.002", ",", "1.004", 
+         ",", "1.006", ",", "1.008", ",", "1.01", ",", "1.02", ",", "1.03", 
+         ",", "1.04", ",", "1.05", ",", "1.06", ",", "1.07", ",", "1.08", ",",
+          "1.09", ",", "1.1"}], "}"}]}], "}"}]}], "]"}]}], "*)"}]], "Input",
+ CellChangeTimes->{{3.636720671083805*^9, 3.6367206798186045`*^9}, {
+   3.636720720281253*^9, 3.63672072636131*^9}, {3.6367208190288773`*^9, 
+   3.636720820294431*^9}, {3.636720857614894*^9, 3.6367208701050034`*^9}, {
+   3.636721615397765*^9, 3.6367216415271893`*^9}, {3.636786852387885*^9, 
+   3.6367868526065435`*^9}, {3.636786972167077*^9, 3.6367869891709766`*^9}, {
+   3.636787056281153*^9, 3.6367870814115877`*^9}, {3.636787197424086*^9, 
+   3.636787207216178*^9}, {3.636787434431133*^9, 3.63678744213451*^9}, {
+   3.6367875619620867`*^9, 3.6367875668090844`*^9}, {3.6367876262444086`*^9, 
+   3.636787701167766*^9}, 3.6775625638463593`*^9}],
+
+Cell[BoxData[
+ RowBox[{"(*", 
+  RowBox[{
+   RowBox[{"limitlist", "=", 
+    RowBox[{"{", 
+     RowBox[{
+     "1.000001", ",", "1.0001", ",", "1.001", ",", "1.002", ",", "1.004", ",",
+       "1.006", ",", "1.008", ",", "1.01", ",", "1.02", ",", "1.03", ",", 
+      "1.04", ",", "1.05", ",", "1.06", ",", "1.07", ",", "1.08", ",", "1.09",
+       ",", "1.1"}], "}"}]}], ";", "\[IndentingNewLine]", 
+   RowBox[{"ListPlot", "[", 
+    RowBox[{"Transpose", "[", 
+     RowBox[{"{", 
+      RowBox[{"limitlist", ",", "meancoord"}], "}"}], "]"}], "]"}]}], 
+  "*)"}]], "Input",
+ CellChangeTimes->{{3.6367877210834265`*^9, 3.6367877833550577`*^9}, {
+   3.6367878525131135`*^9, 3.636787866156505*^9}, 3.6775625649403653`*^9}]
+},
+WindowSize->{1366, 685},
+WindowMargins->{{-8, Automatic}, {Automatic, -8}},
+Magnification:>1.2 Inherited,
+FrontEndVersion->"10.4 for Microsoft Windows (64-bit) (April 11, 2016)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 4861, 115, 614, "Input"],
+Cell[5444, 139, 285, 6, 26, "Print"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[5766, 150, 634, 13, 83, "Input"],
+Cell[6403, 165, 3905, 69, 627, "Output"],
+Cell[10311, 236, 716, 12, 26, "Print"]
+}, Open  ]],
+Cell[11042, 251, 771, 20, 129, "Input"],
+Cell[11816, 273, 615, 15, 60, "Input"],
+Cell[12434, 290, 1669, 34, 106, "Input"],
+Cell[14106, 326, 710, 16, 60, "Input"]
+}
+]
+*)
+
