@@ -66,19 +66,23 @@ Dyn_Vars *initialise(Inputs in) {
         fprintf(stderr, "Error in memory allocation!\n");
         exit(1);
     }
-
-    // dyn_vars->watpos[0] = 1; // 1
-    // dyn_vars->watpos[1] = 0.2;
-    // dyn_vars->watpos[2] = 0;
-    // dyn_vars->watpos[3] = 0; // 2
-    // dyn_vars->watpos[4] = 1;
-    // dyn_vars->watpos[5] = 0;
-    // dyn_vars->watpos[6] = 4; // 3
-    // dyn_vars->watpos[7] = 4.8;
-    // dyn_vars->watpos[8] = 0;
     
     initialise_pos_vel(in, dyn_vars->watpos, dyn_vars->watvel, in.N_WATER, 1.0);
     initialise_pos_vel(in, dyn_vars->partpos, dyn_vars->partvel, in.N_PARTICLES, in.M_PARTICLE);
+
+    // dyn_vars->watpos[0] = -2; // 1
+    // dyn_vars->watpos[1] = 2.5;
+    // dyn_vars->watvel[0] = 10.0;
+    // dyn_vars->watpos[3] = 2; // 2
+    // dyn_vars->watpos[4] = 2;
+    // dyn_vars->watpos[6] = 0; // 3
+    // dyn_vars->watpos[7] = 0;
+    // dyn_vars->watpos[9] = 4; // 4
+    // dyn_vars->watpos[10] = -0.5;
+    // dyn_vars->watvel[9] = -10;
+
+    // dyn_vars->partvel[1] = 2;
+    // dyn_vars->partpos[1] = 4;
     
     return dyn_vars;
 }

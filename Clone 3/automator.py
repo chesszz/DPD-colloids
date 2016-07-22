@@ -14,7 +14,30 @@ def calc_pressure():
     quart_press = pressure[3*len(pressure)//4:]
     avg_quart_press = np.mean(quart_press)
 
-    return avg_quart_press
+    # Round to 4 dp
+    return round(avg_quart_press, 4)
+
+def calc_temp():
+    # Read temp file to get the temp results
+    with open("temp.out","r") as t:
+        temp_data = t.readlines()
+
+    # Split by space and grab the 2nd and 3rd parts - translation and 
+    # rotational temps respectively
+    temp_tuples = [temp_entry.split(",") for temp_entry in temp_data]  
+    temp_tuples = [(float(temp_entry[1]), float(temp_entry[2])) for temp_entry in temp_tuples]
+
+    trans_temp, rot_temp = zip(*temp_tuples)
+
+    quart_trans = trans_temp[3*len(trans_temp)//4:]
+    avg_quart_trans = np.mean(quart_trans)
+
+    quart_rot = rot_temp[3*len(rot_temp)//4:]
+    avg_quart_rot = np.mean(quart_rot)
+
+    # Round to 4 dp
+    return round(avg_quart_trans, 4), round(avg_quart_rot, 4)
+
 
 def get_viscosity():
     # File contains only 1 number
@@ -38,15 +61,30 @@ def modify_file(line_num, new_var):
 # os.chdir("C:\\Users\\Qi\\Desktop\\C Codes\\Clone")
 os.system("make clean && make")
 
+#####################
+# MODIFY THESE
+#####################
+var_name = "Particle Number"
+num_trial = 5
+
+# Particle number: 35 - 39
+var_range = range(35, 40)
+wat_range = [5625, 5500, 5375, 5250, 5125]
+
+# Line in inputs that the var resides 
+# Particle number = 1; Shear rate = 5
+var_line = 1
+#####################
+
 with open("results.txt", "w") as f:
-    f.write("Particle Number, Pressure, Viscosity\n")
+    f.write("{}, Viscosity, Pressure, Trans Temp, Rot Temp\n".format(var_name))
 
-# 0 ~ 27
-for part_num in range(0, 30, 3):
-    for trial in range(3):
+for trial in range(num_trial):
+    for variable, water in zip(var_range, wat_range):
 
-        # Modify the 2nd line, replace with part_num
-        modify_file(line_num=1, new_var=part_num)
+        # Modify the var_line-th line and replace with the new variable
+        modify_file(line_num=0, new_var=water)
+        modify_file(line_num=var_line, new_var=variable)
 
         # Keep looping if we have abnormal execution from assertion fail
         ret = 1 
@@ -56,9 +94,12 @@ for part_num in range(0, 30, 3):
 
         pressure = calc_pressure()
         viscosity = get_viscosity()
+        trans_temp, rot_temp = calc_temp()
 
         with open("results.txt", "a") as f: 
-            f.write("{0}, {1:.5}, {2}\n".format(part_num, pressure, viscosity))
+            f.write("{0}, {1}, {2}, {3}, {4}\n".format(variable, viscosity, pressure, trans_temp, rot_temp))
 
-        print("Particle number = {0}, Trial = {1}".format(part_num, trial))
-        print("{0}, {1:.5}, {2}".format(part_num, pressure, viscosity))
+        print("\n\n/*******************************************************************/")
+        print("{} = {}, Trial = {}".format(var_name, variable, trial))
+        print("{} = {}, Viscosity = {}, Presure = {}, Trans Temp = {}, Rot Temp = {}".format(var_name, variable, viscosity, pressure, trans_temp, rot_temp))
+        print("/*******************************************************************/\n")

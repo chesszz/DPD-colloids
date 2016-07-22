@@ -101,6 +101,17 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     fprintf(wat_out, "Time Step, Water Number, Position, Velocity, Acceleration, Angular Velocity, Angular Acceleration\n");
     fprintf(part_out, "Time Step, Particle Number, Position, Velocity, Acceleration, Angular Velocity, Angular Acceleration\n");
 
+    /* ONLY ONCE AT THE START: Add in the velocity gradient. This velocity 
+     * gradient will be removed temporarily for force computation, and then
+     * re-added right after. Velocity gradient is only for velocity in the x
+     * direction (hence i % 3 == 0), and has magnitude = shear rate * y-pos. */
+    for (int i = 0; i < 3*in.N_WATER; i++) {
+        dyn_vars->watvel[i] += (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->watpos[i+1];
+    } 
+    for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+        dyn_vars->partvel[i] += (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->partpos[i+1];
+    }
+
     /*------------------------------------------------------------------------*/
     /* STABILISING LOOP.                                                      */
     /*------------------------------------------------------------------------*/
@@ -135,21 +146,31 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             /* Velocity Verlet 2: R(t+dt)                                     */
             /*----------------------------------------------------------------*/
             for (int i = 0; i < 3*in.N_WATER; i++) {
-                /* displacement = v * dt. Moreover, if we are doing the x-axis 
-                 * then there is an additional flow velocity due to the linear
-                 * velocity profile (check using 0 mod 3). */
-                disp = dt * (dyn_vars->watvel[i] + 
-                             (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->watpos[i+1]);
+                /* displacement = v * dt. */
+                disp = dt * dyn_vars->watvel[i];
                 /* Add displacement to both the position and displacement list. */
                 dyn_vars->watpos[i] += disp;
                 disp_list_w[i]      += disp;
             } 
             for (int i = 0; i < 3*in.N_PARTICLES; i++) {
-                disp = dt * (dyn_vars->partvel[i] + 
-                             (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->partpos[i+1]);
+                /* displacement = v * dt. */
+                disp = dt * dyn_vars->partvel[i];
                 /* Add displacement to both the position and displacement list. */
                 dyn_vars->partpos[i] += disp;
                 disp_list_p[i]       += disp;
+            }
+
+            /* Screen out the velocity gradient before force computation. 
+             * Note that the y-position used was the y-position BEFORE the 
+             * r update was done. This is done by reversing the v dt change 
+             * in the y-axis. This is because the algorithm was supposed to 
+             * keep v constant and only add the shear flow when updating r,
+             * and so we want to revert v to its value before the r update. */
+            for (int i = 0; i < 3*in.N_WATER; i++) {
+                dyn_vars->watvel[i] -= (i % 3 == 0) * in.SHEAR_RATE * (dyn_vars->watpos[i+1] - dt * dyn_vars->watvel[i+1]);
+            } 
+            for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+                dyn_vars->partvel[i] -= (i % 3 == 0) * in.SHEAR_RATE * (dyn_vars->partpos[i+1] - dt * dyn_vars->partvel[i+1]);
             }
 
             /*----------------------------------------------------------------*/
@@ -182,7 +203,16 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
             /*----------------------------------------------------------------*/
             /* Velocity Verlet 3: F(t+dt)                                     */
             /*----------------------------------------------------------------*/
+
             calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, strength, shear_xy);
+
+            /* Put back the velocity gradient. */
+            for (int i = 0; i < 3*in.N_WATER; i++) {
+                dyn_vars->watvel[i] += (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->watpos[i+1];
+            } 
+            for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+                dyn_vars->partvel[i] += (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->partpos[i+1];
+            }
 
             /*----------------------------------------------------------------*/
             /* Velocity Verlet 4: V(t+dt)                                     */
@@ -212,9 +242,9 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     fprintf(stderr, "Finished all increment loops. Time is now %d.\n", dyn_vars->t);
     int t_after_settle = dyn_vars->t;
 
-    /* -------------------------------------------------------------------- */
-
-    /* MAIN TIME LOOP */
+    /* -----------------------------------------------------------------------*/
+    /* MAIN TIME LOOP                                                         */
+    /*------------------------------------------------------------------------*/
     for (int t = t_after_settle; t < t_after_settle + in.N_STEPS; t++) {
 
         (dyn_vars->t)++;
@@ -239,21 +269,30 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         /* Velocity Verlet 2: R(t+dt)                                         */
         /*--------------------------------------------------------------------*/
         for (int i = 0; i < 3*in.N_WATER; i++) {
-            /* displacement = v * dt. Moreover, if we are doing the x-axis 
-             * then there is an additional flow velocity due to the linear
-             * velocity profile (check using 0 mod 3). */
-            disp = dt * (dyn_vars->watvel[i] + 
-                         (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->watpos[i+1]);
+            /* displacement = v * dt. */
+            disp = dt * dyn_vars->watvel[i];
             /* Add displacement to both the position and displacement list. */
             dyn_vars->watpos[i] += disp;
             disp_list_w[i]      += disp;
         } 
         for (int i = 0; i < 3*in.N_PARTICLES; i++) {
-            disp = dt * (dyn_vars->partvel[i] + 
-                         (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->partpos[i+1]);
+            disp = dt * dyn_vars->partvel[i];
             /* Add displacement to both the position and displacement list. */
             dyn_vars->partpos[i] += disp;
             disp_list_p[i]       += disp;
+        }
+
+        /* Screen out the velocity gradient before force computation. 
+         * Note that the y-position used was the y-position BEFORE the 
+         * r update was done. This is done by reversing the v dt change 
+         * in the y-axis. This is because the algorithm was supposed to 
+         * keep v constant and only add the shear flow when updating r,
+         * and so we want to revert v to its value before the r update. */
+        for (int i = 0; i < 3*in.N_WATER; i++) {
+            dyn_vars->watvel[i] -= (i % 3 == 0) * in.SHEAR_RATE * (dyn_vars->watpos[i+1] - dt * dyn_vars->watvel[i+1]);
+        } 
+        for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+            dyn_vars->partvel[i] -= (i % 3 == 0) * in.SHEAR_RATE * (dyn_vars->partpos[i+1] - dt * dyn_vars->partvel[i+1]);
         }
 
         /*--------------------------------------------------------------------*/
@@ -295,11 +334,21 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         for (int i = 0; i < (in.N_WATER + in.N_PARTICLES); i++) {
             shear_xy[i] = 0;
         }
-        double pressure = calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, 1.0, shear_xy);
+
         /* The calculate_acc function updates the acceleration in the dyn_vars, 
          * but also updates the shears and pressures. Need to compute inside this 
          * function as we need the individual forces between objects i, j, but 
          * we only have the combined force once the function returns. */
+        double pressure = calculate_acc(dyn_vars, in, neigh_list_p, neigh_list_w, neigh_list_pw, 1.0, shear_xy);
+        
+
+         /* Put back the velocity gradient. */
+        for (int i = 0; i < 3*in.N_WATER; i++) {
+            dyn_vars->watvel[i] += (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->watpos[i+1];
+        } 
+        for (int i = 0; i < 3*in.N_PARTICLES; i++) {
+            dyn_vars->partvel[i] += (i % 3 == 0) * in.SHEAR_RATE * dyn_vars->partpos[i+1];
+        }
     
         /*--------------------------------------------------------------------*/
         /* Velocity Verlet 4: V(t+dt)                                         */
@@ -451,8 +500,9 @@ void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, double *v
         int z = y + 1;
 
         /* Returns 0 if y is within -size/2 ~ size/2, 1 if in size/2 ~ 3size/2, 
-         * -1 if in -3size/2 ~ -size/2. */
-        double y_exceed = rint(pos_list[y] / size);
+         * -1 if in -3size/2 ~ -size/2. All 0.5 are rounded to 1 regardless of
+         * sign. */
+        double y_exceed = round(pos_list[y] / size);
         // if (!(y_exceed == 0.0 ||  y_exceed == -1.0 || y_exceed == 1.0)) {
         //     printf("%f\n", y_exceed);
         // }
@@ -469,16 +519,24 @@ void refold_positions(Dyn_Vars *dyn_vars, Inputs in, double *pos_list, double *v
         // vel_list[x] -= size * y_exceed * in.SHEAR_RATE;
 
         pos_list[y] -= size * y_exceed;
+        /* Ensure that we have -size/2 inclusive and size/2 exclusive. */
+        pos_list[y] -= size * (pos_list[y] == size/2);
 
         /* Wrap x dimension. */
-        pos_list[x] -= size * rint(pos_list[x] / size);
+        double x_exceed = round(pos_list[x] / size);
+        pos_list[x] -= size * x_exceed;
+        /* Ensure that we have -size/2 inclusive and size/2 exclusive. */
+        pos_list[x] -= size * (pos_list[x] == size/2);
 
         /* Wrap z dimension. */
-        pos_list[z] -= size * rint(pos_list[z] / size);
+        double z_exceed = round(pos_list[z] / size);
+        pos_list[z] -= size * z_exceed;
+        /* Ensure that we have -size/2 inclusive and size/2 exclusive. */
+        pos_list[z] -= size * (pos_list[z] == size/2);
 
-        if (pos_list[x] < -size/2 || pos_list[x] > size/2) {fprintf(stderr, "%f\n", pos_list[x]);}
-        if (pos_list[y] < -size/2 || pos_list[y] > size/2) {fprintf(stderr, "%f\n", pos_list[y]);} 
-        if (pos_list[z] < -size/2 || pos_list[z] > size/2) {fprintf(stderr, "%f\n", pos_list[z]);}  
+        if (pos_list[x] < -size/2 || pos_list[x] >= size/2) {fprintf(stderr, "x=%f, x_exceed=%f\n", pos_list[x], x_exceed);}
+        if (pos_list[y] < -size/2 || pos_list[y] >= size/2) {fprintf(stderr, "y=%f, y_exceed=%f\n", pos_list[y], y_exceed);} 
+        if (pos_list[z] < -size/2 || pos_list[z] >= size/2) {fprintf(stderr, "z=%f, z_exceed=%f\n", pos_list[z], z_exceed);}  
 
         assert(pos_list[x] >= -size/2);
         assert(pos_list[x] < size/2);
@@ -509,6 +567,8 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
     }
 
     double pressure = 0.0;
+    // int pos = 0;
+    // int neg = 0;
 
     /* Calculate sqrt of dt for use in F_r. Calculate it just once here. */
     double sqrt_dt = sqrt(in.TIME_STEP);
@@ -635,6 +695,10 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
             /* Total magnitude of on-axis force.*/
             double F_on_axis = (F_on_con + F_on_dam + F_on_ran);
 
+            // printf("Vij = %f,%f,%f\n", Vij[0], Vij[1], Vij[2]);
+            // printf("Rij = %f,%f,%f\n", Rij[0], Rij[1], Rij[2]);
+            // printf("%d,%d,distweight=%f,VdotR=%f,F_on_axis=%f\n", i,j,dist_weight, V_dot_R,F_on_axis);
+
             /* ---------------------------------------------------------------*/
             /* OFF-AXIS COMPONENT OF FORCE                                    */
             /* ---------------------------------------------------------------*/
@@ -687,9 +751,10 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
              * i < j. We add the same term for both because F_ij and R_ij are 
              * both reversed in sign when we reverse i and j. */
             shear_xy[i] += F[0] * Rij[1]; //Fx * Ry
-            shear_xy[j] += F[0] * Rij[1]; //TODO
-            // shear_xy[i] += F[1] * Rij[0]; //Fy * Rx
-            // shear_xy[j] += F[1] * Rij[0]; 
+            shear_xy[j] += F[0] * Rij[1];
+            
+            // if (F[1] * Rij[0] > 0) {pos++;}
+            // else {neg++;}
 
             /* Pressure is sum of r_ij dot F_ij. 
              * Once again, this is summed across all (i, j) with j > i, and this
@@ -721,6 +786,8 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
             dyn_vars->watalp[3*j+2] += -lam_ss * (Rij[0] * F[1] - Rij[1] * F[0]) / I_WATER;
         }
     }
+
+    //printf("Timestep: %d, FxRy Pos: %d, FxRy Neg: %d\n", dyn_vars->t, pos, neg);
  
     /* -------------------------------------------------------------------- */
     /* 2. Particle-Particle interactions. */
@@ -884,9 +951,7 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
              * F_ij and R_ij are both reversed in sign when we reverse i and j.
              */
             shear_xy[in.N_WATER + i] += F[0] * Rij[1]; //Fx * Ry
-            shear_xy[in.N_WATER + j] += F[0] * Rij[1]; // TODO
-            // shear_xy[in.N_WATER + i] += F[1] * Rij[0]; //Fy * Rx
-            // shear_xy[in.N_WATER + j] += F[1] * Rij[0]; 
+            shear_xy[in.N_WATER + j] += F[0] * Rij[1];
 
             /* Pressure is sum of r_ij dot F_ij. */
             pressure += F[0] * Rij[0] + 
@@ -1079,9 +1144,7 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
              * We add the same term for both because F_ij and R_ij are both
              * reversed in sign when we reverse i and j. */
             shear_xy[in.N_WATER + i] += F[0] * Rij[1]; //Fx * Ry
-            shear_xy[j] += F[0] * Rij[1];              // TODO
-            // shear_xy[in.N_WATER + i] += F[1] * Rij[0];    //Fy * Rx
-            // shear_xy[j] += F[1] * Rij[0]; 
+            shear_xy[j] += F[0] * Rij[1];
 
             /* Pressure is sum of r_ij dot F_ij. */
             pressure += F[0] * Rij[0] + 
@@ -1129,9 +1192,9 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
         int y = x + 1;
 
         /* Subtract away the x-velocity that comes from the shear flow. */
-        // double vx_corr = dyn_vars->watvel[x] - in.SHEAR_RATE * dyn_vars->watpos[y];
+        double vx_corr = dyn_vars->watvel[x] - in.SHEAR_RATE * dyn_vars->watpos[y];
 
-        shear_xy[i] += M_WATER * dyn_vars->watvel[x] * dyn_vars->watvel[y];
+        shear_xy[i] += M_WATER * vx_corr * dyn_vars->watvel[y];
     }
 
     /* Component of the viscosity that is summed over all particles, of the 
@@ -1144,9 +1207,9 @@ double calculate_acc(Dyn_Vars *dyn_vars, Inputs in, int *neigh_list_p,
         int y = x + 1;
 
         /* Subtract away the x-velocity that comes from the shear flow.*/
-        // double vx_corr = dyn_vars->partvel[x] - in.SHEAR_RATE * dyn_vars->partpos[y];
+        double vx_corr = dyn_vars->partvel[x] - in.SHEAR_RATE * dyn_vars->partpos[y];
 
-        shear_xy[in.N_WATER + i] += in.M_PARTICLE * dyn_vars->partvel[x] * dyn_vars->partvel[y];
+        shear_xy[in.N_WATER + i] += in.M_PARTICLE * vx_corr * dyn_vars->partvel[y];
     }
 
     double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
@@ -1356,10 +1419,10 @@ double calc_temp(Dyn_Vars *dyn_vars, Inputs in) {
         int z = y + 1;
 
         /* Subtract away the x-velocity from the shear flow. */
-        // double vx_corr = dyn_vars->watvel[x] - in.V_SHEAR * (dyn_vars->watpos[y] / in.BOX_SIZE - 0.5);
+        double vx_corr = dyn_vars->watvel[x] - in.SHEAR_RATE * dyn_vars->watpos[y];
 
         KE += 0.5 * 
-                (dyn_vars->watvel[x] * dyn_vars->watvel[x] + 
+                (vx_corr * vx_corr + 
                  dyn_vars->watvel[y] * dyn_vars->watvel[y] +
                  dyn_vars->watvel[z] * dyn_vars->watvel[z]);
     }
@@ -1478,11 +1541,21 @@ void calc_viscosity(Inputs in, int type) {
     /* With shear, use the average (over time) of shear stress in the xy 
      * direction divided by shear velocity. */
     else {
+        int pos = 0;
+        int neg = 0;
+
         for (int t = 0; t < n_time_int; t++) {
             for (int obj = 0; obj < (in.N_WATER + in.N_PARTICLES); obj++) {
                 integrated_viscosity += shear_array[obj][t];
+
+                /* Count how many shears are positive and how many are neg. 
+                 * from the rx*Fy forces alone, we should have more negative. */
+                if (shear_array[obj][t] > 0) {pos++;}
+                else if (shear_array[obj][t] < 0) {neg++;}
             }
         }
+
+        printf("Pos: %d, Neg: %d\n", pos, neg);
 
         /* We actually calculated the pressure tensor (even though we called it
          * "shear", and pressure is the opposite of stress.) */

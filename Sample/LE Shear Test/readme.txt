@@ -1,0 +1,40 @@
+First number - Water num
+Second number - Box Size
+
+First set keeps water number constant.
+Second set keeps water density constant.
+
+/* ---------------------------------------------------------------------------*/
+/* Params:                                                                    */
+/* ---------------------------------------------------------------------------*/
+???
+0
+???
+0.01
+10
+0.5
+4.5
+25
+196.3
+3.0
+5.0
+3.0
+2.45
+110.0
+4.45
+################# BLANK LINE. 15 PARAMS ########################################
+1. N_WATER
+2. N_PARTICLES
+3. N_STEPS
+4. TIME_STEP
+5. BOX_SIZE
+6. SHEAR_RATE
+7. DAMP_CONST
+8. SPRING_CONST
+9. M_PARTICLE
+10. R_SC
+11. R_CC
+12. E_SC
+13. SIGMA_SC
+14. E_CC
+15. SIGMA_CC

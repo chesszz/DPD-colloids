@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
-ANIMATE         = False # Plot the particles moving around. 
-TILE            = False # Plot the replicated units
+ANIMATE         = True # Plot the particles moving around. 
+TILE            = True # Plot the replicated units
 ANIMATE_WATER   = False # Plot the water objects (since there are so many)
 PLOT_TEMP       = False # Plot the temperature-time curve 
 PLOT_MAXBOLTZ   = False # Plot the velocity distribution of water at the last time step
@@ -477,12 +477,12 @@ if PLOT_TEMP:
     quart_temp_stdev_rot = np.std(quart_temp_rot)
 
     ax.plot(times, temp, 'b')
-    ax.plot(times[3*len(times)//4:], avg_quart_temp * np.ones(len(times)//4), 'b', linewidth='3.0')
+    ax.plot(times[3*len(times)//4:], avg_quart_temp * np.ones(len(times) - 3*len(times)//4), 'b', linewidth='3.0')
     # ax.plot(times, (avg_quart_temp + quart_temp_stdev) * np.ones(len(times)), 'b--')
     # ax.plot(times, (avg_quart_temp - quart_temp_stdev) * np.ones(len(times)), 'b--')
 
     ax.plot(times, temp_rot, 'r')
-    ax.plot(times[3*len(times)//4:], avg_quart_temp_rot * np.ones(len(times)//4), 'r', linewidth='3.0')
+    ax.plot(times[3*len(times)//4:], avg_quart_temp_rot * np.ones(len(times) - 3*len(times)//4), 'r', linewidth='3.0')
     # ax.plot(times, (avg_quart_temp_rot + quart_temp_stdev_rot) * np.ones(len(times)), 'r--')
     # ax.plot(times, (avg_quart_temp_rot - quart_temp_stdev_rot) * np.ones(len(times)), 'r--')
 
@@ -592,13 +592,13 @@ if PLOT_CROSSFLOW:
         grouped[list_idx].append(row[1])
 
     # Take the mean of the list. If there are no particles in this group, set
-    # the mean to be 0.
+    # the mean to be 0. Same for the standard deviation.
     mean_vel  = [sum(row) / len(row) if len(row) != 0 else 0 for row in grouped]
     vel_err = [np.std(row) if len(row) != 0 else 0 for row in grouped]
     # Number of water molecules in this bin.
     num_water = [len(row) for row in grouped]
 
-    vx_theory = 0*SHEAR_RATE * y_centres
+    vx_theory = SHEAR_RATE * y_centres
 
     plt.figure()
     
