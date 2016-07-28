@@ -7,6 +7,6 @@
 void output_state(Dyn_Vars *dyn_vars, Inputs in);
 
 /* Frees all the dynamical variables lists and the struct itself. */
-void terminate(Dyn_Vars *dyn_vars, Inputs in);
+void terminate(Dyn_Vars *dyn_vars);
 
 #endif /* TERMINATE_H */

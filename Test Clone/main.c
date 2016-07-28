@@ -17,16 +17,14 @@ int main (void) {
     evolve_system(dyn_vars, inputs);
     diff = clock() - start;
 
-    calc_viscosity(inputs);
-    calc_viscosity_book(inputs);
-
+    calc_viscosity(inputs, 1);
+    
     output_state(dyn_vars, inputs);
-    terminate(dyn_vars, inputs);
+    terminate(dyn_vars);
 
     double msec = diff * 1000.0 / CLOCKS_PER_SEC;
-    printf("Time taken %.3f seconds for %d time steps. %.3f ms per step.\n", msec/1000, inputs.N_STEPS, msec/inputs.N_STEPS);
-    printf("/*****************************************/\n\n");
-
+    printf("Time taken %.3f seconds for %d time steps. %.3f ms per step.", msec/1000, inputs.N_STEPS, msec/inputs.N_STEPS);
+    
     return 0;
 }
 

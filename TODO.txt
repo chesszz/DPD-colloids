@@ -1,17 +1,16 @@
 Todo:
-------
-- Get_rel_vel -->rint vs round
+-----
+- Several definitions of stress tensor
 - Does viscosity diverge? -- Explore viscosity with even more particles
-- Effects of integration time
 - Effects of changing hardness of particles
 - Try to keep pressure constant -- effects of number of water present
+- Compare LE-SLLOD viscosity vs Green-Kubo viscosity
 
 
 Future Investigations:
 ----------------------
     - Packing/Jamming state -- phi very near phi_max -- Flowability of water at such scales
     - Nonhomogeneous particle sizes -- Similar to how the supercooled water has varying sizes of "solid" water
-    - Shear-type viscosity measurements.... -- Lees-Edwards + SLLOD
 
 Reference:
 ----------

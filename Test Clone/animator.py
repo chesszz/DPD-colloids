@@ -12,20 +12,23 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
-ANIMATE         = False # Plot the particles moving around. 
+ANIMATE         = True # Plot the particles moving around. 
 TILE            = False # Plot the replicated units
-ANIMATE_WATER   = False # Plot the water objects (since there are so many)
-PLOT_TEMP       = True # Plot the temperature-time curve 
+ANIMATE_WATER   = True # Plot the water objects (since there are so many)
+PLOT_TEMP       = False # Plot the temperature-time curve 
 PLOT_MAXBOLTZ   = False # Plot the velocity distribution of water at the last time step
-PLOT_CROSSFLOW  = True # Plot the x-velocity distribution of water against y-position at the last time step
+PLOT_CROSSFLOW  = False # Plot the x-velocity distribution of water against y-position at the last time step
 PLOT_VISC       = False # Plot the viscosity-time curve. Deprecated for now due to implementation in C.
 PLOT_SQ_DISP_W  = False # Plot the squared-displacement of water. Doesn't really work for shears due to x-jumps.
 PLOT_SQ_DISP_P  = False  # Plot the squared-displacement of particles. Doesn't really work for shears due to x-jumps.
 PLOT_PRESSURE   = False  # Plot the pressure-time curve
 
-NUM_INPUTS      = 12    # How many inputs there are to be read from inputs.in
+NUM_INPUTS      = 15    # How many inputs there are to be read from inputs.in
 
 R_WATER         = 0.5   # Radius of water -- set to be 0.5 by definition of length scale
+R_PARTICLE_SOFT = 2.5   # Particles / Water objects attract at this shell
+R_PARTICLE      = 2.225 # Particles repel at this shell
+R_PARTICLE_INNER= 1.95  # Water objects repel at this shell
 
 #------------------------------------------------------------
 
@@ -215,12 +218,6 @@ V_SHEAR     = SHEAR_RATE * BOX_SIZE
 # Read the entire water and partcle file to get the simulation results for all time
 if ANIMATE or PLOT_SQ_DISP_P:
     part_data = parse_whole_output("particles.out")
-
-    # Acquire particle radii
-    with open("part_radii.out", "r") as f:
-        part_radii = f.readlines()
-    part_radii = [float(radius) for radius in part_radii] 
-
 if ANIMATE_WATER or PLOT_SQ_DISP_W:
     wat_data  = parse_whole_output("water.out")
 
@@ -291,7 +288,6 @@ if ANIMATE:
     if TILE:
         num_water_circles = 9 * N_WATER
         num_particles_circles = 9 * N_PARTICLES
-        part_radii *= 9
     else:
         num_water_circles = N_WATER
         num_particles_circles = N_PARTICLES
@@ -305,9 +301,9 @@ if ANIMATE:
         for patch in water:
             ax_animate.add_patch(patch)
 
-    particles = [Circle((0, 0), 0.9*part_radii[i], fc='brown') for i in range(num_particles_circles)]
-    particles_shell = [Circle((0, 0), part_radii[i], fc='brown', alpha=0.5) for i in range(num_particles_circles)]
-    particles_inner = [Circle((0, 0), 0.8*part_radii[i], fc='yellow', alpha=0.5) for i in range(num_particles_circles)]
+    particles = [Circle((0, 0), R_PARTICLE, fc='brown') for _ in range(num_particles_circles)]
+    particles_shell = [Circle((0, 0), R_PARTICLE_SOFT, fc='brown', alpha=0.5) for _ in range(num_particles_circles)]
+    particles_inner = [Circle((0, 0), R_PARTICLE_INNER, fc='yellow', alpha=0.5) for _ in range(num_particles_circles)]
 
     for patch in particles:
         ax_animate.add_patch(patch)
@@ -602,7 +598,7 @@ if PLOT_CROSSFLOW:
     # Number of water molecules in this bin.
     num_water = [len(row) for row in grouped]
 
-    vx_theory = 0*SHEAR_RATE * y_centres
+    vx_theory = SHEAR_RATE * y_centres
 
     plt.figure()
     

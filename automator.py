@@ -64,16 +64,17 @@ os.system("make clean && make")
 #####################
 # MODIFY THESE
 #####################
-var_name = "Shear Rate"
+var_name = "Particle Number"
 num_trial = 5
 
-# Particle number: 0, 3, 6, 9, 12
-var_range = [0.01, 0.03, 0.001, 0.003, 0.07]
+# Part Num
+var_range = [30, 31, 32, 33, 34]
 
-wat_range = [3000, 3000, 3000, 3000, 3000]
+wat_range = [6250, 6125, 6000, 5875, 5750]
+#wat_range = [10000] * len(var_range)
 # Line in inputs that the var resides 
 # Particle number = 1; Shear rate = 5
-var_line = 5
+var_line = 1
 #####################
 
 with open("results.txt", "w") as f:

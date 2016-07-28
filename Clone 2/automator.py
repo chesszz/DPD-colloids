@@ -67,10 +67,10 @@ os.system("make clean && make")
 var_name = "Particle Number"
 num_trial = 5
 
-# Particle number: 30 - 34
-var_range = range(30, 35)
-wat_range = [6250, 6125, 6000, 5875, 5750]
+# Part Num
+var_range = [40, 41]
 
+wat_range = [10000] * len(var_range)
 # Line in inputs that the var resides 
 # Particle number = 1; Shear rate = 5
 var_line = 1

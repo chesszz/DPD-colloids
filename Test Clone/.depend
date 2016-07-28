@@ -1,0 +1,2 @@
+sim.o: sim.c sim.h
+init.o: init.c sim.h

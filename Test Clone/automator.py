@@ -68,10 +68,9 @@ var_name = "Particle Number"
 num_trial = 5
 
 # Part Num
-var_range = [35, 36, 37, 38, 39]
+var_range = [15, 18, 21, 24, 27]
 
-wat_range = [5625, 5500, 5375, 5250, 5125]
-#wat_range = [10000] * len(var_range)
+wat_range = [8125, 7750, 7375, 7000, 6625]
 # Line in inputs that the var resides 
 # Particle number = 1; Shear rate = 5
 var_line = 1

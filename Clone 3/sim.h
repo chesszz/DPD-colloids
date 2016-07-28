@@ -16,10 +16,10 @@
 
 /* Used to contain all the input parameters to be passed around. */
 typedef struct {
-    int N_WATER;
-    int N_PARTICLES;
+    int    N_WATER;
+    int    N_PARTICLES;
 
-    int N_STEPS;
+    int    N_STEPS;
     double TIME_STEP;
     double BOX_SIZE;
     double SHEAR_RATE;
@@ -27,13 +27,13 @@ typedef struct {
     double DAMP_CONST;
     double SPRING_CONST;
 
-    double M_PARTICLE;
-    double R_SC;
-    double R_CC;
+    double R_PARTICLE_AVG;
+    double R_PARTICLE_STDEV;
     double E_SC;
-    double SIGMA_SC;
     double E_CC;
-    double SIGMA_CC;
+
+    double *PART_RADII;
+    double *PART_MASS;
 } Inputs;
 
 /* Contains all the dynamical variable arrays + time counter. */
@@ -57,6 +57,7 @@ typedef struct {
  * defined to be 1 in utils.h.
  */ 
 void evolve_system(Dyn_Vars *dyn_vars, Inputs in);
-void calc_viscosity(Inputs in, int type);
+void calc_viscosity(Inputs in);
+void calc_viscosity_book(Inputs in);
 
 #endif /* SIM_H */

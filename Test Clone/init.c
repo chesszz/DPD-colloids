@@ -4,8 +4,7 @@
 #include <math.h>
 
 void fill_gaussian_two_tuple(double *tuple, double stdev);
-void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num, double *mass, int var_mass_mode);
-void initialise_part_size_mass(Inputs in);
+void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num, double mass);
 
 /* Reads inputs from stdin that correspond to the vaious parameters. Returns
  * an Inputs struct that stores those parameters.
@@ -14,20 +13,12 @@ Inputs get_inputs(void) {
 
     Inputs in;
 
-    scanf("%d %d %d %lf %lf %lf %lf %lf %lf %lf %lf %lf", 
+    scanf("%d %d %d %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf", 
         &in.N_WATER, &in.N_PARTICLES,
         &in.N_STEPS, &in.TIME_STEP, &in.BOX_SIZE, &in.SHEAR_RATE,
         &in.DAMP_CONST, &in.SPRING_CONST, 
-        &in.R_PARTICLE_AVG, &in.R_PARTICLE_STDEV, 
-        &in.E_SC, &in.E_CC);
-
-    in.PART_RADII = (double *) calloc(in.N_PARTICLES, sizeof(double));
-    in.PART_MASS = (double *) calloc(in.N_PARTICLES, sizeof(double));
-
-    if (in.PART_RADII  == NULL || in.PART_MASS == NULL) {
-        fprintf(stderr, "Error in memory allocation!\n");
-        exit(1);
-    }
+        &in.M_PARTICLE, &in.R_SC, &in.R_CC, &in.E_SC, &in.SIGMA_SC,
+        &in.E_CC, &in.SIGMA_CC);
 
     return in;
 }
@@ -38,8 +29,6 @@ Inputs get_inputs(void) {
  * pointer that stores these arrays.
  */
 Dyn_Vars *initialise(Inputs in) {
-
-    FILE *part_radii = fopen("part_radii.out", "w");
 
     #if TWO_D
         fprintf(stderr, "TWO DIMENSIONAL\n\n\n");
@@ -78,19 +67,8 @@ Dyn_Vars *initialise(Inputs in) {
         exit(1);
     }
     
-    initialise_part_size_mass(in);
-
-    for (int i = 0; i < in.N_PARTICLES; i++) {
-        fprintf(part_radii, "%f\n", in.PART_RADII[i]);
-        fprintf(stderr, "Radius: %f, Mass:%f\n", in.PART_RADII[i], in.PART_MASS[i]);
-    }
-    fclose(part_radii);
-    
-    /* Creating a new variaable is needed to pass mass of water to the function 
-     * since it takes a double pointer. */
-    double M_WATER = 1.0;
-    initialise_pos_vel(in, dyn_vars->watpos, dyn_vars->watvel, in.N_WATER, &M_WATER, 0);
-    initialise_pos_vel(in, dyn_vars->partpos, dyn_vars->partvel, in.N_PARTICLES, in.PART_MASS, 1);
+    initialise_pos_vel(in, dyn_vars->watpos, dyn_vars->watvel, in.N_WATER, 1.0);
+    initialise_pos_vel(in, dyn_vars->partpos, dyn_vars->partvel, in.N_PARTICLES, in.M_PARTICLE);
 
     // dyn_vars->watpos[0] = -2; // 1
     // dyn_vars->watpos[1] = 2.5;
@@ -110,7 +88,7 @@ Dyn_Vars *initialise(Inputs in) {
 }
 
 /* Take a tuple with at least 2 slots and fills them with Gaussian values that
- * have sigma = 1. Uses the Box-Muller transform.
+ * have sigma = 1.
  */
 void fill_gaussian_two_tuple(double *tuple, double stdev) {
 
@@ -131,12 +109,9 @@ void fill_gaussian_two_tuple(double *tuple, double stdev) {
 
 /* Initialise the position and velocities using a random uniform distribution
  * and  Maxwell-Boltzmann distribution respectively. Requires the mass since
- * the M-B distribution depends on the mass. If var_mass_mode is true, then we 
- * interpret the mass as a list of masses. Otherwise it is 
- * interpreted as a normal pointer o a double.
+ * the M-B distribution depends on the mass.
  */
-void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num, 
-                        double *mass, int var_mass_mode) {
+void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num, double mass) {
     for (int i = 0; i < num; i++) {
 
         int x = 3 * i;
@@ -154,24 +129,14 @@ void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num,
 
         /* http://scicomp.stackexchange.com/questions/19969/how-do-i-generate-maxwell-boltzmann-variates-using-a-uniform-distribution-random */
         /* Maxwell-Boltzmann distribution has all components of velocity
-         * randomly drawn from a Gaussian with mean 0 and stdev sqrt(kT/m). 
+         * randomly drawn from a Gaussian. 
          */
         double gaussian_tuple[2];
-        double mass_i;
-
-        /* Interpret "mass" as a list of particle masses. */
-        if (var_mass_mode) {
-            mass_i = mass[i];
-        }
-        /* Interpret mass as a simple pointer to a double. Dereference the pointer. */
-        else {
-            mass_i = *mass;
-        }
 
         /* Stdev is 1/sqrt(m) since we take kT to be 1 by definition of 
          * our units.
          */
-        double vel_stdev = 1.0 / sqrt(mass_i);
+        double vel_stdev = 1.0 / sqrt(mass);
 
         fill_gaussian_two_tuple(gaussian_tuple, vel_stdev);
         vel_list[x] = gaussian_tuple[0];
@@ -188,60 +153,5 @@ void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num,
         #if TWO_D
             vel_list[z] = 0; /* TODO: Uncomment for 2D. */
         #endif
-    }
-}
-
-/* Fills in the particle sizes by sampling from a Gaussian distribution with 
- * mean = R_PARTICLE_AVG and standard deviation = R_PARTICLE_STDEV */
-void initialise_part_size_mass(Inputs in) {
-
-    double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
-
-    double particle_vol = 0.0;
-    for (int i = 0; i < in.N_PARTICLES; i++) {
-        particle_vol += 4.0 / 3 * M_PI * in.PART_RADII[i] * in.PART_RADII[i] * in.PART_RADII[i];
-    }
-
-    /* Number of particles per unit volume, excluding the particle-occupied 
-     * volumes. This is the number density and also the mass density since each
-     * water has mass 1. We assume the particles hve this same density as 
-     * well. */
-    double rho_particle = in.N_WATER / (box_vol - particle_vol);
-    rho_particle = 3; /*TODO */
-
-    double gaussian_tuple[2];
-
-    /* Fill in the particle sizes with the Gaussian distribution in pairs. */
-    for (int i = 0; i < in.N_PARTICLES / 2; i++) {
-
-        /* Ensure that the resulting radii are non-negative. */
-        do {
-            fill_gaussian_two_tuple(gaussian_tuple, in.R_PARTICLE_STDEV);
-        } while (gaussian_tuple[0] <= -in.R_PARTICLE_AVG || gaussian_tuple[1] <= -in.R_PARTICLE_AVG);
-        
-        in.PART_RADII[2*i  ] = gaussian_tuple[0] + in.R_PARTICLE_AVG;
-        in.PART_RADII[2*i+1] = gaussian_tuple[1] + in.R_PARTICLE_AVG;
-
-        in.PART_MASS[2*i]   = rho_particle * 4.0 / 3 * M_PI * 
-                              in.PART_RADII[2*i] * in.PART_RADII[2*i] * in.PART_RADII[2*i];
-        in.PART_MASS[2*i+1] = rho_particle * 4.0 / 3 * M_PI * 
-                              in.PART_RADII[2*i+1] * in.PART_RADII[2*i+1] * in.PART_RADII[2*i+1];
-    }
-
-    /* If we have an odd number of particles, we manually fill in the last one
-     * by itself. */
-    if (in.N_PARTICLES % 2 == 1) {
-
-        /* Ensure that the resulting radius is non-negative. */
-        do {
-            fill_gaussian_two_tuple(gaussian_tuple, in.R_PARTICLE_STDEV);
-        } while (gaussian_tuple[0] <= -in.R_PARTICLE_AVG);
-
-        in.PART_RADII[in.N_PARTICLES-1] = gaussian_tuple[0] + in.R_PARTICLE_AVG;
-
-        in.PART_MASS[in.N_PARTICLES-1] = rho_particle * 4.0 / 3 * M_PI * 
-                                          in.PART_RADII[in.N_PARTICLES-1] * 
-                                          in.PART_RADII[in.N_PARTICLES-1] * 
-                                          in.PART_RADII[in.N_PARTICLES-1];
     }
 }

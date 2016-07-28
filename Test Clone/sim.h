@@ -5,21 +5,21 @@
 #define VERBOSE 0
 
 /* SHOULD BE 0 */
-#define TWO_D 0
+#define TWO_D 1
 
 /* SHOULD BE 0 */
-#define PRINT_WATER 0
-#define PRINT_PARTICLES 0
+#define PRINT_WATER 1
+#define PRINT_PARTICLES 1
 
 /* SHOULD BE 1 */
-#define OFF_AXIS_FORCE_ON 1
+#define OFF_AXIS_FORCE_ON 0
 
 /* Used to contain all the input parameters to be passed around. */
 typedef struct {
-    int    N_WATER;
-    int    N_PARTICLES;
+    int N_WATER;
+    int N_PARTICLES;
 
-    int    N_STEPS;
+    int N_STEPS;
     double TIME_STEP;
     double BOX_SIZE;
     double SHEAR_RATE;
@@ -27,13 +27,13 @@ typedef struct {
     double DAMP_CONST;
     double SPRING_CONST;
 
-    double R_PARTICLE_AVG;
-    double R_PARTICLE_STDEV;
+    double M_PARTICLE;
+    double R_SC;
+    double R_CC;
     double E_SC;
+    double SIGMA_SC;
     double E_CC;
-
-    double *PART_RADII;
-    double *PART_MASS;
+    double SIGMA_CC;
 } Inputs;
 
 /* Contains all the dynamical variable arrays + time counter. */
@@ -57,7 +57,6 @@ typedef struct {
  * defined to be 1 in utils.h.
  */ 
 void evolve_system(Dyn_Vars *dyn_vars, Inputs in);
-void calc_viscosity(Inputs in);
-void calc_viscosity_book(Inputs in);
+void calc_viscosity(Inputs in, int type);
 
 #endif /* SIM_H */
