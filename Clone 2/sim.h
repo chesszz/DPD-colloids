@@ -14,6 +14,9 @@
 /* SHOULD BE 1 */
 #define OFF_AXIS_FORCE_ON 1
 
+/* SHOULD BE 1. Can be >1 but not 0. */
+#define NUM_PROG_STEPS 1
+
 /* Used to contain all the input parameters to be passed around. */
 typedef struct {
     int    N_WATER;

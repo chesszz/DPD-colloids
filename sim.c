@@ -1454,7 +1454,6 @@ void calc_viscosity(Inputs in) {
     FILE *shear_data;
     FILE *viscosity = fopen("viscosity.out", "w");
     FILE *viscosity_prog = fopen("viscosity_prog.out", "w");
-    int num_prog_steps = 50;
 
     /* 2 operating modes, read from either one of the shear outputs files that
      * were produced using different stress tensor formula. */
@@ -1497,9 +1496,9 @@ void calc_viscosity(Inputs in) {
     }
 
 
-    for (int frac = 1; frac <= num_prog_steps; frac++) {
+    for (int frac = 1; frac <= NUM_PROG_STEPS; frac++) {
         /* Number of time steps we are doing the integral over. */
-        int n_time_int = (frac / (double) num_prog_steps) * in.N_STEPS / 2;
+        int n_time_int = (frac / (double) NUM_PROG_STEPS) * in.N_STEPS / 2;
         double integrated_viscosity = 0.0;
 
         /* Use the Green-Kubo formula, eq 8 in Lee. Does an integral (sum) of its
@@ -1520,7 +1519,7 @@ void calc_viscosity(Inputs in) {
         integrated_viscosity *= in.TIME_STEP * in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
         fprintf(viscosity_prog, "%d, %d, %.5f\n", frac, n_time_int, integrated_viscosity);
 
-        if (frac == num_prog_steps) {
+        if (frac == NUM_PROG_STEPS) {
             fprintf(stderr, "\n\nUsed the Green Kubo formula.\n");
 
             fprintf(stderr, "Integrated Viscosity is %.5f.\n", integrated_viscosity);
@@ -1547,7 +1546,6 @@ void calc_viscosity_book(Inputs in) {
     FILE *shear_data;
     FILE *viscosity = fopen("viscosity2.out", "w");
     FILE *viscosity_prog = fopen("viscosity2_prog.out", "w");
-    int num_prog_steps = 50;
 
     /* 2 operating modes, read from either one of the shear outputs files that
      * were produced using different stress tensor formula. */
@@ -1573,10 +1571,10 @@ void calc_viscosity_book(Inputs in) {
         fscanf(shear_data, "%lf,", &shear_array[t]);
     }
 
-    for (int frac = 1; frac <= num_prog_steps; frac++) {
+    for (int frac = 1; frac <= NUM_PROG_STEPS; frac++) {
 
         /* Number of time steps we are computing the viscosity over. */
-        int n_time_int = (frac / (double) num_prog_steps) * in.N_STEPS / 2;
+        int n_time_int = (frac / (double) NUM_PROG_STEPS) * in.N_STEPS / 2;
         double integrated_viscosity = 0.0;
 
         /* Use the Green-Kubo formula, eq 8 in Lee. Does an integral (sum) of its
@@ -1593,7 +1591,7 @@ void calc_viscosity_book(Inputs in) {
         integrated_viscosity *= in.TIME_STEP * in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
         fprintf(viscosity_prog, "%d, %d, %.5f\n", frac, n_time_int, integrated_viscosity);
 
-        if (frac == num_prog_steps) {
+        if (frac == NUM_PROG_STEPS) {
             fprintf(stderr, "Used the Green Kubo formula.\n");
             fprintf(stderr, "Integrated Viscosity is %.5f.\n", integrated_viscosity);
             fprintf(stderr, "Integrated over the last %d time steps. \n\n\n", in.N_STEPS / 2);
