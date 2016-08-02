@@ -82,7 +82,7 @@ Dyn_Vars *initialise(Inputs in) {
 
     for (int i = 0; i < in.N_PARTICLES; i++) {
         fprintf(part_radii, "%f\n", in.PART_RADII[i]);
-        fprintf(stderr, "Radius: %f, Mass:%f\n", in.PART_RADII[i], in.PART_MASS[i]);
+        // fprintf(stderr, "Radius: %f, Mass:%f\n", in.PART_RADII[i], in.PART_MASS[i]);
     }
     fclose(part_radii);
     

@@ -94,8 +94,9 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
     FILE *part_out = fopen("particles.out", "w");
     FILE *temp_out = fopen("temp.out", "w");
     FILE *shear_out = fopen("shear.out", "w");
-    FILE *shear_out2 = fopen("shear2.out", "w");
+    // FILE *shear_out2 = fopen("shear2.out", "w");
     FILE *pressure_out = fopen("pressure.out", "w");
+    FILE *part_vec_out = fopen("part_vec.out", "w");
 
     int update_req = 1;
 
@@ -365,8 +366,7 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         #endif
 
         /* At each time step, print the positions, velocities, and 
-         * accelerations for each particle.
-         */
+         * accelerations for each water and particle. */
         #if PRINT_WATER
             for (int i = 0; i < in.N_WATER; i++) {
                 fprintf(wat_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
@@ -406,20 +406,20 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
         /* Alternative method for shear that involves only the TOTAL force and 
          * the POSITION of particles, and not pairwise forces and relative 
          * positions. Page 503 in Tuckerman. */
-        double shear2 = 0.0;
+        // double shear2 = 0.0;
 
-        for (int i = 0; i < in.N_WATER; i++) {
-            shear2 += M_WATER * dyn_vars->watvel[3*i] * dyn_vars->watvel[3*i+1] +
-                     M_WATER * dyn_vars->watacc[3*i] * dyn_vars->watpos[3*i+1];             
-        }
-        for (int i = 0; i < in.N_PARTICLES; i++) {
-            shear2 += in.PART_MASS[i] * dyn_vars->partvel[3*i] * dyn_vars->partvel[3*i+1] +
-                      in.PART_MASS[i] * dyn_vars->partacc[3*i] * dyn_vars->partpos[3*i+1];
-        }
+        // for (int i = 0; i < in.N_WATER; i++) {
+        //     shear2 += M_WATER * dyn_vars->watvel[3*i] * dyn_vars->watvel[3*i+1] +
+        //              M_WATER * dyn_vars->watacc[3*i] * dyn_vars->watpos[3*i+1];             
+        // }
+        // for (int i = 0; i < in.N_PARTICLES; i++) {
+        //     shear2 += in.PART_MASS[i] * dyn_vars->partvel[3*i] * dyn_vars->partvel[3*i+1] +
+        //               in.PART_MASS[i] * dyn_vars->partacc[3*i] * dyn_vars->partpos[3*i+1];
+        // }
 
-        double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
-        shear2 /= box_vol;
-        fprintf(shear_out2, "%f\n", shear2);
+        // double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
+        // shear2 /= box_vol;
+        // fprintf(shear_out2, "%f\n", shear2);
 
         /* At each time step, print the pressure. */
         fprintf(pressure_out, "%d, %f\n", t, pressure);
@@ -442,13 +442,35 @@ void evolve_system(Dyn_Vars *dyn_vars, Inputs in) {
                 dyn_vars->watalp[3*i], dyn_vars->watalp[3*i+1], dyn_vars->watalp[3*i+2]);
         }
     #endif
+    /* If we don't print all the particles, we at least print the last one. */
+    #if !PRINT_PARTICLES
+        for (int i = 0; i < in.N_PARTICLES; i++) {
+            fprintf(part_out, "%d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n", 
+                dyn_vars->t, i, 
+                dyn_vars->partpos[3*i], dyn_vars->partpos[3*i+1], dyn_vars->partpos[3*i+2], 
+                dyn_vars->partvel[3*i], dyn_vars->partvel[3*i+1], dyn_vars->partvel[3*i+2],
+                dyn_vars->partacc[3*i], dyn_vars->partacc[3*i+1], dyn_vars->partacc[3*i+2],
+                dyn_vars->partomg[3*i], dyn_vars->partomg[3*i+1], dyn_vars->partomg[3*i+2],
+                dyn_vars->partalp[3*i], dyn_vars->partalp[3*i+1], dyn_vars->partalp[3*i+2]);
+        }
+    #endif
+
+    for (int i = 0; i < in.N_PARTICLES; i++) {
+        for (int j = 0; j < in.N_PARTICLES; j++) {
+            double Rij[3];
+            get_rel_vector(in, dyn_vars->t, dyn_vars->partpos, 
+                dyn_vars->partpos, i, j, Rij);
+            fprintf(part_vec_out, "%d, %d, %f, %f, %f\n", i, j ,Rij[0], Rij[1], Rij[2]);
+        }
+    }
 
     fclose(wat_out);
     fclose(part_out);
     fclose(temp_out);
     fclose(shear_out);
-    fclose(shear_out2);
+    // fclose(shear_out2);
     fclose(pressure_out);
+    fclose(part_vec_out);
 
     free(disp_list_w);
     free(disp_list_p);

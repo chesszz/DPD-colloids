@@ -6,6 +6,7 @@
 void fill_gaussian_two_tuple(double *tuple, double stdev);
 void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num, double *mass, int var_mass_mode);
 void initialise_part_size_mass(Inputs in);
+void zero_p_cm(Inputs in, Dyn_Vars *dyn_vars);
 
 /* Reads inputs from stdin that correspond to the vaious parameters. Returns
  * an Inputs struct that stores those parameters.
@@ -82,15 +83,15 @@ Dyn_Vars *initialise(Inputs in) {
 
     for (int i = 0; i < in.N_PARTICLES; i++) {
         fprintf(part_radii, "%f\n", in.PART_RADII[i]);
-        fprintf(stderr, "Radius: %f, Mass:%f\n", in.PART_RADII[i], in.PART_MASS[i]);
     }
-    fclose(part_radii);
+    
     
     /* Creating a new variaable is needed to pass mass of water to the function 
      * since it takes a double pointer. */
     double M_WATER = 1.0;
     initialise_pos_vel(in, dyn_vars->watpos, dyn_vars->watvel, in.N_WATER, &M_WATER, 0);
     initialise_pos_vel(in, dyn_vars->partpos, dyn_vars->partvel, in.N_PARTICLES, in.PART_MASS, 1);
+    zero_p_cm(in, dyn_vars);
 
     // dyn_vars->watpos[0] = -2; // 1
     // dyn_vars->watpos[1] = 2.5;
@@ -106,6 +107,7 @@ Dyn_Vars *initialise(Inputs in) {
     // dyn_vars->partvel[1] = 2;
     // dyn_vars->partpos[1] = 4;
     
+    fclose(part_radii);
     return dyn_vars;
 }
 
@@ -243,5 +245,54 @@ void initialise_part_size_mass(Inputs in) {
                                           in.PART_RADII[in.N_PARTICLES-1] * 
                                           in.PART_RADII[in.N_PARTICLES-1] * 
                                           in.PART_RADII[in.N_PARTICLES-1];
+    }
+}
+
+void zero_p_cm(Inputs in, Dyn_Vars *dyn_vars) {
+    double M_total = 0;
+    double p_x = 0;
+    double p_y = 0;
+    double p_z = 0;
+
+    for (int i = 0; i < in.N_WATER; i++) {
+        int x = 3*i;
+        int y = x+1;
+        int z = y+1;
+        M_total += 1; /* M_WATER = 1. */
+        p_x += dyn_vars->watvel[x];
+        p_y += dyn_vars->watvel[y];
+        p_z += dyn_vars->watvel[z];
+    }
+
+    for (int i = 0; i < in.N_PARTICLES; i++) {
+        int x = 3*i;
+        int y = x+1;
+        int z = y+1;
+        M_total += in.PART_MASS[i];
+        p_x += in.PART_MASS[i] * dyn_vars->partvel[x];
+        p_y += in.PART_MASS[i] * dyn_vars->partvel[y];
+        p_z += in.PART_MASS[i] * dyn_vars->partvel[z];
+    }
+
+    double V_cm_x = p_x / M_total;
+    double V_cm_y = p_y / M_total;
+    double V_cm_z = p_z / M_total;
+
+    for (int i = 0; i < in.N_WATER; i++) {
+        int x = 3*i;
+        int y = x+1;
+        int z = y+1;
+        dyn_vars->watvel[x] -= V_cm_x;
+        dyn_vars->watvel[y] -= V_cm_y;
+        dyn_vars->watvel[z] -= V_cm_z;
+    }
+
+    for (int i = 0; i < in.N_PARTICLES; i++) {
+        int x = 3*i;
+        int y = x+1;
+        int z = y+1;
+        dyn_vars->partvel[x] -= V_cm_x;
+        dyn_vars->partvel[y] -= V_cm_y;
+        dyn_vars->partvel[z] -= V_cm_z;
     }
 }

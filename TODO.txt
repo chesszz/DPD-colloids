@@ -1,17 +1,21 @@
 Todo:
 -----
-- Several definitions of stress tensor
-- Does viscosity diverge? -- Explore viscosity with even more particles
 - Effects of changing hardness of particles
-- Try to keep pressure constant -- effects of number of water present
-- Compare LE-SLLOD viscosity vs Green-Kubo viscosity
+    * Rerun with SLLOD
+- Effects of particle sizes
+    * Running....
+- Nonhomogeneous particle sizes -- Similar to how the supercooled water has varying sizes of "solid" water
+    * Viscosity measurements as a function of size/stdev
+    * Take pictures of state
+- Packing/Jamming state -- phi very near phi_max -- Flowability of water at such scales
+    * Take pictures of jammed state - vary shear rates and particle size
+    * Measure coordination number -- randomness
 
 
 Future Investigations:
 ----------------------
-    - Packing/Jamming state -- phi very near phi_max -- Flowability of water at such scales
-    - Nonhomogeneous particle sizes -- Similar to how the supercooled water has varying sizes of "solid" water
-
+    
+    
 Reference:
 ----------
 - Pryamitsyn OR Pan papers (both adaptations of Fluid Particle Model but with different potentials)

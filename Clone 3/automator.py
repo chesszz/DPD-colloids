@@ -64,16 +64,21 @@ os.system("make clean && make")
 #####################
 # MODIFY THESE
 #####################
+# Variable name - Used when we are printing into the output files
 var_name = "Particle Number"
+# Number of repeats we want to do
 num_trial = 5
+# Variable that we are modifying
+var_range = [66, 68, 70, 72, 74]
 
-# Part Num
-var_range = [42, 43]
+# Amount of water present - can either be constant or varying.
+wat_range = [10000 - 64*i for i in var_range]
+#wat_range = [7000] * len(var_range)
 
-wat_range = [10000] * len(var_range)
 # Line in inputs that the var resides 
 # Particle number = 1; Shear rate = 5
-var_line = 1
+var_line_dict = {"Particle Number": 1, "Shear Rate": 5}
+var_line = var_line_dict[var_name]
 #####################
 
 with open("results.txt", "w") as f:

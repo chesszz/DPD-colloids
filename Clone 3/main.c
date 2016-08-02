@@ -18,7 +18,7 @@ int main (void) {
     diff = clock() - start;
 
     calc_viscosity(inputs);
-    calc_viscosity_book(inputs);
+    // calc_viscosity_book(inputs);
 
     output_state(dyn_vars, inputs);
     terminate(dyn_vars, inputs);
