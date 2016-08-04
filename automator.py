@@ -69,10 +69,11 @@ var_name = "Particle Number"
 # Number of repeats we want to do
 num_trial = 5
 # Variable that we are modifying
-var_range = [0, 3, 6, 9, 12]
+var_range = [0, 4, 8, 12, 16]
 
 # Amount of water present - can either be constant or varying.
-wat_range = [10000 - 125*i for i in var_range]
+wat_range = [round(10000 - (125+46.656)/2*i) for i in var_range]
+#wat_range = [10000 - 125*i for i in var_range]
 #wat_range = [7000] * len(var_range)
 
 # Line in inputs that the var resides 
