@@ -214,10 +214,10 @@ void initialise_part_size_mass(Inputs in) {
     /* Fill in the particle sizes with the Gaussian distribution in pairs. */
     for (int i = 0; i < in.N_PARTICLES / 2; i++) {
 
-        /* Ensure that the resulting radii are non-negative. */
+        /* Ensure that the resulting radii are at least 1.0. Water radius is 0.5. */
         do {
             fill_gaussian_two_tuple(gaussian_tuple, in.R_PARTICLE_STDEV);
-        } while (gaussian_tuple[0] <= -in.R_PARTICLE_AVG || gaussian_tuple[1] <= -in.R_PARTICLE_AVG);
+        } while ( (gaussian_tuple[0] + in.R_PARTICLE_AVG) <= 1.0 || (gaussian_tuple[1] + in.R_PARTICLE_AVG) <= 1.0);
         
         in.PART_RADII[2*i  ] = gaussian_tuple[0] + in.R_PARTICLE_AVG;
         in.PART_RADII[2*i+1] = gaussian_tuple[1] + in.R_PARTICLE_AVG;
@@ -232,10 +232,10 @@ void initialise_part_size_mass(Inputs in) {
      * by itself. */
     if (in.N_PARTICLES % 2 == 1) {
 
-        /* Ensure that the resulting radius is non-negative. */
+        /* Ensure that the resulting radius is at leat 1.0 Water radis is 0.5. */
         do {
             fill_gaussian_two_tuple(gaussian_tuple, in.R_PARTICLE_STDEV);
-        } while (gaussian_tuple[0] <= -in.R_PARTICLE_AVG);
+        } while ( (gaussian_tuple[0] + in.R_PARTICLE_AVG) <= 1.0);
 
         in.PART_RADII[in.N_PARTICLES-1] = gaussian_tuple[0] + in.R_PARTICLE_AVG;
 
