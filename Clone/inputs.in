@@ -1,5 +1,5 @@
-7375
-21
+8125
+15
 10000
 0.001
 15
@@ -7,7 +7,7 @@
 4.5
 25
 2.5
-0.5
+1.8
 3.0
 110.0
 ################# BLANK LINE. 12 PARAMS ########################################
@@ -19,7 +19,7 @@
 6. SHEAR_RATE
 7. DAMP_CONST
 8. SPRING_CONST
-9. R_PARTICLE_AVG
-10. R_PARTICLE_STDEV
+9. R_PARTICLE_1
+10. R_PARTICLE_2
 11. E_SC
 12. E_CC

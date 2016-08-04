@@ -1,3 +1,1 @@
 Particle Number, Viscosity, Pressure, Trans Temp, Rot Temp
-15, 80.87329, 20.4781, 1.0096, 1.0026
-18, 164.70849, 21.4866, 1.0456, 0.9947

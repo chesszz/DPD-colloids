@@ -18,7 +18,7 @@ Inputs get_inputs(void) {
         &in.N_WATER, &in.N_PARTICLES,
         &in.N_STEPS, &in.TIME_STEP, &in.BOX_SIZE, &in.SHEAR_RATE,
         &in.DAMP_CONST, &in.SPRING_CONST, 
-        &in.R_PARTICLE_AVG, &in.R_PARTICLE_STDEV, 
+        &in.R_PARTICLE_1, &in.R_PARTICLE_2, 
         &in.E_SC, &in.E_CC);
 
     in.PART_RADII = (double *) calloc(in.N_PARTICLES, sizeof(double));
@@ -195,32 +195,28 @@ void initialise_pos_vel(Inputs in, double *pos_list, double *vel_list, int num,
  * mean = R_PARTICLE_AVG and standard deviation = R_PARTICLE_STDEV */
 void initialise_part_size_mass(Inputs in) {
 
-    double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
+    // double box_vol = in.BOX_SIZE * in.BOX_SIZE * in.BOX_SIZE;
 
-    double particle_vol = 0.0;
-    for (int i = 0; i < in.N_PARTICLES; i++) {
-        particle_vol += 4.0 / 3 * M_PI * in.PART_RADII[i] * in.PART_RADII[i] * in.PART_RADII[i];
-    }
+    /* Calculate total volume occupied by particles... but particle sizes have 
+     * not been initialised...? */
+    // double particle_vol = 0.0;
+    // for (int i = 0; i < in.N_PARTICLES; i++) {
+    //     particle_vol += 4.0 / 3 * M_PI * in.PART_RADII[i] * in.PART_RADII[i] * in.PART_RADII[i];
+    // }
 
     /* Number of particles per unit volume, excluding the particle-occupied 
      * volumes. This is the number density and also the mass density since each
      * water has mass 1. We assume the particles hve this same density as 
      * well. */
-    double rho_particle = in.N_WATER / (box_vol - particle_vol);
-    rho_particle = 3; /*TODO */
+    // double rho_particle = in.N_WATER / (box_vol - particle_vol);
+    double rho_particle = 3; /*TODO: We set here as 3 directly. */
 
-    double gaussian_tuple[2];
 
     /* Fill in the particle sizes with the Gaussian distribution in pairs. */
     for (int i = 0; i < in.N_PARTICLES / 2; i++) {
 
-        /* Ensure that the resulting radii are at least 1.0. Water radius is 0.5. */
-        do {
-            fill_gaussian_two_tuple(gaussian_tuple, in.R_PARTICLE_STDEV);
-        } while ( (gaussian_tuple[0] + in.R_PARTICLE_AVG) <= 1.0 || (gaussian_tuple[1] + in.R_PARTICLE_AVG) <= 1.0);
-        
-        in.PART_RADII[2*i  ] = gaussian_tuple[0] + in.R_PARTICLE_AVG;
-        in.PART_RADII[2*i+1] = gaussian_tuple[1] + in.R_PARTICLE_AVG;
+        in.PART_RADII[2*i  ] = in.R_PARTICLE_1;
+        in.PART_RADII[2*i+1] = in.R_PARTICLE_2;
 
         in.PART_MASS[2*i]   = rho_particle * 4.0 / 3 * M_PI * 
                               in.PART_RADII[2*i] * in.PART_RADII[2*i] * in.PART_RADII[2*i];
@@ -232,12 +228,7 @@ void initialise_part_size_mass(Inputs in) {
      * by itself. */
     if (in.N_PARTICLES % 2 == 1) {
 
-        /* Ensure that the resulting radius is at leat 1.0 Water radis is 0.5. */
-        do {
-            fill_gaussian_two_tuple(gaussian_tuple, in.R_PARTICLE_STDEV);
-        } while ( (gaussian_tuple[0] + in.R_PARTICLE_AVG) <= 1.0);
-
-        in.PART_RADII[in.N_PARTICLES-1] = gaussian_tuple[0] + in.R_PARTICLE_AVG;
+        in.PART_RADII[in.N_PARTICLES-1] = in.R_PARTICLE_1;
 
         in.PART_MASS[in.N_PARTICLES-1] = rho_particle * 4.0 / 3 * M_PI * 
                                           in.PART_RADII[in.N_PARTICLES-1] * 

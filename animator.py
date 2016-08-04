@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
-ANIMATE         = False # Plot the particles moving around. 
-TILE            = False # Plot the replicated units
-ANIMATE_WATER   = False # Plot the water objects (since there are so many)
-PLOT_TEMP       = True # Plot the temperature-time curve 
+ANIMATE         = True # Plot the particles moving around. 
+TILE            = True # Plot the replicated units
+ANIMATE_WATER   = True # Plot the water objects (since there are so many)
+PLOT_TEMP       = False # Plot the temperature-time curve 
 PLOT_MAXBOLTZ   = False # Plot the velocity distribution of water at the last time step
-PLOT_CROSSFLOW  = True # Plot the x-velocity distribution of water against y-position at the last time step
+PLOT_CROSSFLOW  = False # Plot the x-velocity distribution of water against y-position at the last time step
 PLOT_VISC       = False # Plot the viscosity-time curve. Deprecated for now due to implementation in C.
 PLOT_SQ_DISP_W  = False # Plot the squared-displacement of water. Doesn't really work for shears due to x-jumps.
 PLOT_SQ_DISP_P  = False  # Plot the squared-displacement of particles. Doesn't really work for shears due to x-jumps.

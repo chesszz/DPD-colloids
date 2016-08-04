@@ -30,8 +30,8 @@ typedef struct {
     double DAMP_CONST;
     double SPRING_CONST;
 
-    double R_PARTICLE_AVG;
-    double R_PARTICLE_STDEV;
+    double R_PARTICLE_1;
+    double R_PARTICLE_2;
     double E_SC;
     double E_CC;
 
