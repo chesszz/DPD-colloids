@@ -13,7 +13,7 @@ import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
 ANIMATE         = True # Plot the particles moving around. 
-TILE            = False # Plot the replicated units
+TILE            = True # Plot the replicated units
 ANIMATE_WATER   = True # Plot the water objects (since there are so many)
 PLOT_TEMP       = False # Plot the temperature-time curve 
 PLOT_MAXBOLTZ   = False # Plot the velocity distribution of water at the last time step

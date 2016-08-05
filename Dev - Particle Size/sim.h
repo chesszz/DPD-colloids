@@ -5,14 +5,14 @@
 #define VERBOSE 0
 
 /* SHOULD BE 0 */
-#define TWO_D 0
+#define TWO_D 1
 
 /* SHOULD BE 0 */
-#define PRINT_WATER 0
-#define PRINT_PARTICLES 0
+#define PRINT_WATER 1
+#define PRINT_PARTICLES 1
 
 /* SHOULD BE 1 */
-#define OFF_AXIS_FORCE_ON 1
+#define OFF_AXIS_FORCE_ON 0
 
 /* SHOULD BE 1. Can be >1 but not 0. */
 #define NUM_PROG_STEPS 1

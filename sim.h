@@ -8,8 +8,8 @@
 #define TWO_D 0
 
 /* SHOULD BE 0 */
-#define PRINT_WATER 0
-#define PRINT_PARTICLES 0
+#define PRINT_WATER 1
+#define PRINT_PARTICLES 1
 
 /* SHOULD BE 1 */
 #define OFF_AXIS_FORCE_ON 1

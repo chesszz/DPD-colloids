@@ -67,13 +67,14 @@ os.system("make clean && make")
 # Variable name - Used when we are printing into the output files
 var_name = "Particle Number"
 # Number of repeats we want to do
-num_trial = 5
+num_trial = 1
 # Variable that we are modifying
-var_range = [20, 24, 28, 32, 36]
+var_range = [10, 11, 12, 13, 14]
+var_range += ([20, 21, 22, 23, 24] * 5)
 
 # Amount of water present - can either be constant or varying.
-wat_range = [round(10000 - (125+46.656)/2*i) for i in var_range]
-#wat_range = [10000 - 125*i for i in var_range]
+#wat_range = [round(10000 - (125+46.656)/2*i) for i in var_range]
+wat_range = [10000 - 216*i for i in var_range]
 #wat_range = [7000] * len(var_range)
 
 # Line in inputs that the var resides 
